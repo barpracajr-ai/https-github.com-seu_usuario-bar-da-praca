@@ -904,14 +904,14 @@ export default function Dashboard() {
       const novosDesmembrados = fiadoSelecionado.itensDesmembrados.filter((_: any, i: number) => i !== idx);
       const itensAgrupados: any[] = [];
       novosDesmembrados.forEach((i: any) => {
-        const existente = itensAgrupados.find((x) => x.id === i.id);
+        const existente = itensAgrupados.find((x: any) => x.id === i.id);
         if (existente) {
           existente.quantidade += 1;
         } else {
           itensAgrupados.push({ ...i, quantidade: 1 });
         }
       });
-      const novoTotal = itensAgrupados.reduce((acc, i) => acc + (i.preco * i.quantidade), 0);
+      const novoTotal = itensAgrupados.reduce((acc: any, i: any) => acc + (i.preco * i.quantidade), 0);
 
       const { error } = await supabase
         .from("fiados")
@@ -1697,7 +1697,6 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* ... MODAIS RESTANTES ... */}
       {/* ========== MODAL GERENCIAR CLIENTES ========== */}
       {modalClientesAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
