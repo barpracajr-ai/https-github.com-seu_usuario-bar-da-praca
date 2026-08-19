@@ -1,8 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  turbo: {
-    resolveExtensions: ['.tsx', '.ts', '.jsx', '.js', '.json'],
+  experimental: {
+    turbo: {
+      resolveExtensions: ['.tsx', '.ts', '.jsx', '.js', '.json'],
+    },
   },
 };
 
