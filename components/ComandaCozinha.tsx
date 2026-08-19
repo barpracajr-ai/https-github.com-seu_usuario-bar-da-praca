@@ -4,8 +4,16 @@ import { useRef } from "react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
-export default function ComandaCozinha(props: any) {
-  const { mesa, cliente, itens, total, pagamentos, onClose } = props;
+interface ComandaCozinhaProps {
+  mesa: number | string;
+  cliente: string;
+  itens: any[];
+  total: number;
+  pagamentos?: any[];
+  onClose?: () => void;
+}
+
+export default function ComandaCozinha({ mesa, cliente, itens, total, pagamentos, onClose }: ComandaCozinhaProps) {
   const comandaRef = useRef<HTMLDivElement>(null);
 
   const gerarPDF = async () => {
