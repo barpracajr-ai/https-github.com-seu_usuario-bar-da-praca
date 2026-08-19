@@ -901,7 +901,7 @@ export default function Dashboard() {
     if (!confirm(`Remover "${item.nome}" (R$ ${item.preco.toFixed(2)}) do fiado?`)) return;
 
     try {
-      const novosDesmembrados = fiadoSelecionado.itensDesmembrados.filter((_, i) => i !== idx);
+      const novosDesmembrados = fiadoSelecionado.itensDesmembrados.filter((_: any, i: number) => i !== idx);
       const itensAgrupados: any[] = [];
       novosDesmembrados.forEach((i: any) => {
         const existente = itensAgrupados.find((x) => x.id === i.id);
