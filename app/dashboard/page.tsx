@@ -419,6 +419,7 @@ export default function Dashboard() {
     let itensAtualizados = [...itensAntigos];
 
     pedidoAtual.forEach((itemNovo) => {
+      // CORREÇÃO DE TIPAGEM AQUI (i: any)
       const index = itensAtualizados.findIndex((i: any) => i.id === itemNovo.id);
       if (index >= 0) {
         itensAtualizados[index].quantidade += itemNovo.quantidade;
@@ -1497,7 +1498,8 @@ export default function Dashboard() {
     const itensMesa = mesaSelecionada.itens || [];
     let itensTexto = "";
     if (itensMesa.length > 0) {
-      itensTexto = itensMesa.map((item) =>
+      // CORREÇÃO DE TIPAGEM AQUI (item: any)
+      itensTexto = itensMesa.map((item: any) =>
         `🍽️ ${item.quantidade}x ${item.nome} - R$ ${(item.preco * item.quantidade).toFixed(2).replace('.', ',')}`
       ).join('\n');
     } else {
@@ -1698,7 +1700,6 @@ export default function Dashboard() {
       </main>
 
       {/* ... MODAIS RESTANTES ... */}
-
       {/* ========== MODAL GERENCIAR CLIENTES ========== */}
       {modalClientesAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
