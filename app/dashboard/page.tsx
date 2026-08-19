@@ -418,7 +418,7 @@ export default function Dashboard() {
     const itensAntigos = mesaSelecionada.itens || [];
     let itensAtualizados = [...itensAntigos];
 
-    pedidoAtual.forEach((itemNovo) => {
+    pedidoAtual.forEach((itemNovo: any) => {
       const index = itensAtualizados.findIndex((i: any) => i.id === itemNovo.id);
       if (index >= 0) {
         itensAtualizados[index].quantidade += itemNovo.quantidade;
