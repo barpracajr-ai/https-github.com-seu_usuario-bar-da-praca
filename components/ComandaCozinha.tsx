@@ -4,16 +4,35 @@ import { useRef } from "react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
+interface Item {
+  id: string;
+  nome: string;
+  quantidade: number;
+  preco: number;
+}
+
+interface Pagamento {
+  metodo: string;
+  valor: number;
+}
+
 interface ComandaCozinhaProps {
   mesa: number | string;
   cliente: string;
-  itens: any[];
+  itens: Item[];
   total: number;
-  pagamentos?: any[];
+  pagamentos?: Pagamento[];
   onClose?: () => void;
 }
 
-export default function ComandaCozinha({ mesa, cliente, itens, total, pagamentos, onClose }: ComandaCozinhaProps) {
+export default function ComandaCozinha({
+  mesa,
+  cliente,
+  itens,
+  total,
+  pagamentos,
+  onClose,
+}: ComandaCozinhaProps) {
   const comandaRef = useRef<HTMLDivElement>(null);
 
   const gerarPDF = async () => {
@@ -56,7 +75,7 @@ export default function ComandaCozinha({ mesa, cliente, itens, total, pagamentos
               </tr>
             </thead>
             <tbody>
-              {itens.map((item: any, idx: number) => (
+              {itens.map((item: Item, idx: number) => (
                 <tr key={idx} className="border-b border-gray-100">
                   <td className="py-2">{item.quantidade}</td>
                   <td className="py-2 uppercase">{item.nome}</td>
@@ -71,7 +90,7 @@ export default function ComandaCozinha({ mesa, cliente, itens, total, pagamentos
           {pagamentos && pagamentos.length > 0 && (
             <div className="mt-4 border-t pt-2">
               <p className="font-bold">Formas de pagamento:</p>
-              {pagamentos.map((p: any, idx: number) => (
+              {pagamentos.map((p: Pagamento, idx: number) => (
                 <div key={idx} className="flex justify-between text-sm">
                   <span>{p.metodo.toUpperCase()}</span>
                   <span>R$ {p.valor.toFixed(2)}</span>
