@@ -214,7 +214,7 @@ export default function Dashboard() {
     }
   }
 
-  // Realtime Otimizado (com desduplicação rigorosa para evitar "Double Dipping")
+  // Realtime Blindado com Desduplicação (Map IDs)
   useEffect(() => {
     if (!usuario) return;
 
@@ -224,101 +224,84 @@ export default function Dashboard() {
         "postgres_changes",
         { event: "*", schema: "public", table: "mesas" },
         (payload) => {
-          if (payload.eventType === 'INSERT' && payload.new.status === 'ocupada') {
-            setMesas((prev) => {
-              if (prev.some(m => m.id === payload.new.id)) return prev;
-              return [...prev, payload.new].sort((a, b) => a.numero - b.numero);
-            });
-          } else if (payload.eventType === 'UPDATE') {
-            setMesas((prev) => {
-              if (payload.new.status !== 'ocupada') {
-                return prev.filter((m) => m.id !== payload.new.id);
+          setMesas((prev) => {
+            const map = new Map(prev.map(m => [String(m.id), m]));
+            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              if (payload.new.status === 'ocupada') {
+                map.set(String(payload.new.id), payload.new);
+              } else {
+                map.delete(String(payload.new.id));
               }
-              const existe = prev.some((m) => m.id === payload.new.id);
-              if (existe) {
-                return prev.map((m) => (m.id === payload.new.id ? payload.new : m)).sort((a, b) => a.numero - b.numero);
-              }
-              return [...prev, payload.new].sort((a, b) => a.numero - b.numero);
-            });
-          } else if (payload.eventType === 'DELETE') {
-            setMesas((prev) => prev.filter((m) => m.id !== payload.old.id));
-          }
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "pedidos_cozinha" },
-        (payload) => {
-          setPedidosCozinha((prev) => {
-            if (prev.some(p => p.id === payload.new.id)) return prev;
-            if (usuario.role === "gerente") tocarSomAlerta();
-            return [...prev, payload.new];
+            } else if (payload.eventType === 'DELETE') {
+              map.delete(String(payload.old.id));
+            }
+            return Array.from(map.values()).sort((a, b) => a.numero - b.numero);
           });
         }
       )
       .on(
         "postgres_changes",
-        { event: "DELETE", schema: "public", table: "pedidos_cozinha" },
+        { event: "*", schema: "public", table: "pedidos_cozinha" },
         (payload) => {
-          setPedidosCozinha((prev) => prev.filter((p) => p.id !== payload.old.id));
+          setPedidosCozinha((prev) => {
+            const map = new Map(prev.map(p => [String(p.id), p]));
+            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              if (payload.eventType === 'INSERT' && !map.has(String(payload.new.id)) && usuario.role === "gerente") {
+                tocarSomAlerta();
+              }
+              map.set(String(payload.new.id), payload.new);
+            } else if (payload.eventType === 'DELETE') {
+              map.delete(String(payload.old.id));
+            }
+            return Array.from(map.values());
+          });
         }
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "fiados" },
         (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setFiados((prev) => {
-              if (prev.some(f => f.id === payload.new.id)) return prev;
-              return [payload.new, ...prev].sort((a, b) => new Date(b.data_criacao).getTime() - new Date(a.data_criacao).getTime());
-            });
-          } else if (payload.eventType === 'UPDATE') {
-            setFiados((prev) => prev.map((f) => f.id === payload.new.id ? payload.new : f));
-          } else if (payload.eventType === 'DELETE') {
-            setFiados((prev) => prev.filter((f) => f.id !== payload.old.id));
-          }
+          setFiados((prev) => {
+            const map = new Map(prev.map(f => [String(f.id), f]));
+            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              map.set(String(payload.new.id), payload.new);
+            } else if (payload.eventType === 'DELETE') {
+              map.delete(String(payload.old.id));
+            }
+            return Array.from(map.values()).sort((a, b) => new Date(b.data_criacao).getTime() - new Date(a.data_criacao).getTime());
+          });
         }
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "insumos" },
         (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setInsumos((prev) => {
-              if (prev.some(i => i.id === payload.new.id)) return prev;
-              return [...prev, payload.new].sort((a, b) => a.nome.localeCompare(b.nome));
-            });
-          } else if (payload.eventType === 'UPDATE') {
-            setInsumos((prev) => prev.map((i) => i.id === payload.new.id ? payload.new : i).sort((a, b) => a.nome.localeCompare(b.nome)));
-          } else if (payload.eventType === 'DELETE') {
-            setInsumos((prev) => prev.filter((i) => i.id !== payload.old.id));
-          }
+          setInsumos((prev) => {
+            const map = new Map(prev.map(i => [String(i.id), i]));
+            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              map.set(String(payload.new.id), payload.new);
+            } else if (payload.eventType === 'DELETE') {
+              map.delete(String(payload.old.id));
+            }
+            return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+          });
         }
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "clientes" },
         (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setClientes((prev) => {
-              if (prev.some(c => c.id === payload.new.id)) return prev;
-              const novos = [...prev, payload.new].sort((a, b) => a.nome.localeCompare(b.nome));
-              setClientesFiltrados(novos);
-              return novos;
-            });
-          } else if (payload.eventType === 'UPDATE') {
-            setClientes((prev) => {
-              const novos = prev.map((c) => c.id === payload.new.id ? payload.new : c).sort((a, b) => a.nome.localeCompare(b.nome));
-              setClientesFiltrados(novos);
-              return novos;
-            });
-          } else if (payload.eventType === 'DELETE') {
-            setClientes((prev) => {
-              const novos = prev.filter((c) => c.id !== payload.old.id);
-              setClientesFiltrados(novos);
-              return novos;
-            });
-          }
+          setClientes((prev) => {
+            const map = new Map(prev.map(c => [String(c.id), c]));
+            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              map.set(String(payload.new.id), payload.new);
+            } else if (payload.eventType === 'DELETE') {
+              map.delete(String(payload.old.id));
+            }
+            const novos = Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+            setClientesFiltrados(novos);
+            return novos;
+          });
         }
       )
       .subscribe();
@@ -367,12 +350,9 @@ export default function Dashboard() {
         if (errUpdate) throw errUpdate;
 
         setMesas((prev) => {
-          const existe = prev.some((m) => m.id === mesaExistente.id);
-          if (existe) {
-            return prev.map((m) => (m.id === mesaExistente.id ? mesaAtualizada : m));
-          } else {
-            return [...prev, mesaAtualizada];
-          }
+          const map = new Map(prev.map(m => [String(m.id), m]));
+          map.set(String(mesaAtualizada.id), mesaAtualizada);
+          return Array.from(map.values()).sort((a, b) => a.numero - b.numero);
         });
 
         setModalAberto(false);
@@ -387,7 +367,11 @@ export default function Dashboard() {
 
         if (errInsert) throw errInsert;
 
-        setMesas((prev) => [...prev, novaMesa]);
+        setMesas((prev) => {
+          const map = new Map(prev.map(m => [String(m.id), m]));
+          map.set(String(novaMesa.id), novaMesa);
+          return Array.from(map.values()).sort((a, b) => a.numero - b.numero);
+        });
         setModalAberto(false);
         setNumeroMesa("");
         setClienteMesa("");
@@ -510,26 +494,32 @@ export default function Dashboard() {
 
           if (errEstoque) throw errEstoque;
 
-          setInsumos((prev) =>
-            prev.map((i) =>
-              i.id === insumo.id ? { ...i, estoque: novoEstoque } : i
-            )
-          );
+          setInsumos((prev) => {
+            const map = new Map(prev.map(i => [String(i.id), i]));
+            const atualizado = map.get(String(insumo.id));
+            if (atualizado) {
+              map.set(String(insumo.id), { ...atualizado, estoque: novoEstoque });
+            }
+            return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+          });
         }
       }
 
       setPedidosCozinha((prev) => {
-         if(prev.some(p => p.id === pedidoCozinha.id)) return prev;
-         return [...prev, pedidoCozinha];
+         const map = new Map(prev.map(p => [String(p.id), p]));
+         map.set(String(pedidoCozinha.id), pedidoCozinha);
+         return Array.from(map.values());
       });
       
-      setMesas((prev) =>
-        prev.map((m) =>
-          m.id === mesaSelecionada.id
-            ? { ...m, total: totalNovo, itens: itensAtualizados }
-            : m
-        )
-      );
+      setMesas((prev) => {
+        const map = new Map(prev.map(m => [String(m.id), m]));
+        const atualizada = map.get(String(mesaSelecionada.id));
+        if (atualizada) {
+          map.set(String(mesaSelecionada.id), { ...atualizada, total: totalNovo, itens: itensAtualizados });
+        }
+        return Array.from(map.values()).sort((a, b) => a.numero - b.numero);
+      });
+
       setMesaSelecionada((prev: any) => ({
         ...prev,
         total: totalNovo,
@@ -549,7 +539,7 @@ export default function Dashboard() {
     try {
       const { error } = await supabase.from("pedidos_cozinha").delete().eq("id", id);
       if (error) throw error;
-      setPedidosCozinha((prev) => prev.filter((p) => p.id !== id));
+      setPedidosCozinha((prev) => prev.filter((p) => String(p.id) !== String(id)));
     } catch (err: any) {
       alert("Erro ao finalizar pedido: " + err.message);
     }
@@ -701,7 +691,7 @@ export default function Dashboard() {
 
       if (novoTotal <= 0.01) {
         await supabase.from("mesas").delete().eq("id", mesaSelecionada.id);
-        setMesas(prev => prev.filter(m => m.id !== mesaSelecionada.id));
+        setMesas(prev => prev.filter(m => String(m.id) !== String(mesaSelecionada.id)));
         setMesaSelecionada(null);
         setFichaAberta(false);
         setCheckoutAberto(false);
@@ -714,13 +704,14 @@ export default function Dashboard() {
 
         if (errUpdate) throw errUpdate;
 
-        setMesas(prev =>
-          prev.map(m =>
-            m.id === mesaSelecionada.id
-              ? { ...m, total: novoTotal }
-              : m
-          )
-        );
+        setMesas(prev => {
+          const map = new Map(prev.map(m => [String(m.id), m]));
+          const atualizada = map.get(String(mesaSelecionada.id));
+          if (atualizada) {
+            map.set(String(mesaSelecionada.id), { ...atualizada, total: novoTotal });
+          }
+          return Array.from(map.values()).sort((a, b) => a.numero - b.numero);
+        });
         setMesaSelecionada((prev: any) => ({ ...prev, total: novoTotal }));
 
         const novosPagamentos = pagamentos.filter(p => p.id !== id);
@@ -755,12 +746,11 @@ export default function Dashboard() {
       if (error) throw error;
 
       setClientes(prev => {
-        if(prev.some(c => c.id === data.id)) return prev;
-        return [...prev, data];
-      });
-      setClientesFiltrados(prev => {
-        if(prev.some(c => c.id === data.id)) return prev;
-        return [...prev, data];
+        const map = new Map(prev.map(c => [String(c.id), c]));
+        map.set(String(data.id), data);
+        const novos = Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+        setClientesFiltrados(novos);
+        return novos;
       });
       setClienteSelecionadoId(data.id);
       setBuscaCliente(data.nome);
@@ -781,7 +771,7 @@ export default function Dashboard() {
 
     if (totalMesa === 0) {
       await supabase.from("mesas").delete().eq("id", mesaSelecionada.id);
-      setMesas(prev => prev.filter(m => m.id !== mesaSelecionada.id));
+      setMesas(prev => prev.filter(m => String(m.id) !== String(mesaSelecionada.id)));
       setMesaSelecionada(null);
       setFichaAberta(false);
       setCheckoutAberto(false);
@@ -852,9 +842,15 @@ export default function Dashboard() {
             .from("fiados")
             .update({ total: novoTotal, itens: itensAtuais })
             .eq("id", fiadoExistente.id);
-          setFiados(prev => prev.map(f =>
-            f.id === fiadoExistente.id ? { ...f, total: novoTotal, itens: itensAtuais } : f
-          ));
+            
+          setFiados(prev => {
+            const map = new Map(prev.map(f => [String(f.id), f]));
+            const existente = map.get(String(fiadoExistente.id));
+            if (existente) {
+              map.set(String(fiadoExistente.id), { ...existente, total: novoTotal, itens: itensAtuais });
+            }
+            return Array.from(map.values()).sort((a, b) => new Date(b.data_criacao).getTime() - new Date(a.data_criacao).getTime());
+          });
         } else {
           const { data: novoRegistro, error: errInsert } = await supabase
             .from("fiados")
@@ -866,15 +862,17 @@ export default function Dashboard() {
             .select()
             .single();
           if (errInsert) throw errInsert;
+          
           setFiados(prev => {
-             if(prev.some(f => f.id === novoRegistro.id)) return prev;
-             return [novoRegistro, ...prev];
+             const map = new Map(prev.map(f => [String(f.id), f]));
+             map.set(String(novoRegistro.id), novoRegistro);
+             return Array.from(map.values()).sort((a, b) => new Date(b.data_criacao).getTime() - new Date(a.data_criacao).getTime());
           });
         }
       }
 
       await supabase.from("mesas").delete().eq("id", mesaSelecionada.id);
-      setMesas(prev => prev.filter(m => m.id !== mesaSelecionada.id));
+      setMesas(prev => prev.filter(m => String(m.id) !== String(mesaSelecionada.id)));
       setMesaSelecionada(null);
       setFichaAberta(false);
       setCheckoutAberto(false);
@@ -950,9 +948,13 @@ export default function Dashboard() {
 
       if (error) throw error;
 
-      setFiados(prev => prev.map(f =>
-        f.id === fiadoSelecionado.id ? { ...f, itens: itensAgrupados, total: novoTotal } : f
-      ));
+      setFiados(prev => {
+        const map = new Map(prev.map(f => [String(f.id), f]));
+        const f = map.get(String(fiadoSelecionado.id));
+        if (f) map.set(String(fiadoSelecionado.id), { ...f, itens: itensAgrupados, total: novoTotal });
+        return Array.from(map.values()).sort((a, b) => new Date(b.data_criacao).getTime() - new Date(a.data_criacao).getTime());
+      });
+      
       setFiadoSelecionado((prev: any) => ({
         ...prev,
         itensDesmembrados: novosDesmembrados,
@@ -1031,7 +1033,7 @@ export default function Dashboard() {
 
       if (novoTotal <= 0.01) {
         await supabase.from("fiados").delete().eq("id", fiadoSelecionado.id);
-        setFiados(prev => prev.filter(f => f.id !== fiadoSelecionado.id));
+        setFiados(prev => prev.filter(f => String(f.id) !== String(fiadoSelecionado.id)));
       } else {
         const { error: errUpdate } = await supabase
           .from("fiados")
@@ -1039,9 +1041,12 @@ export default function Dashboard() {
           .eq("id", fiadoSelecionado.id);
 
         if (errUpdate) throw errUpdate;
-        setFiados(prev => prev.map(f =>
-          f.id === fiadoSelecionado.id ? { ...f, total: novoTotal } : f
-        ));
+        setFiados(prev => {
+          const map = new Map(prev.map(f => [String(f.id), f]));
+          const f = map.get(String(fiadoSelecionado.id));
+          if (f) map.set(String(fiadoSelecionado.id), { ...f, total: novoTotal });
+          return Array.from(map.values()).sort((a, b) => new Date(b.data_criacao).getTime() - new Date(a.data_criacao).getTime());
+        });
       }
 
       setFiadoModalAberto(false);
@@ -1130,9 +1135,13 @@ export default function Dashboard() {
           .update({ nome, unidade, estoque: estoqueNum, custo_unidade: custoNum })
           .eq("id", insumoEditando.id);
         if (error) throw error;
-        setInsumos(prev =>
-          prev.map(i => i.id === insumoEditando.id ? { ...i, nome, unidade, estoque: estoqueNum, custo_unidade: custoNum } : i)
-        );
+        
+        setInsumos(prev => {
+          const map = new Map(prev.map(i => [String(i.id), i]));
+          const original = map.get(String(insumoEditando.id));
+          if (original) map.set(String(insumoEditando.id), { ...original, nome, unidade, estoque: estoqueNum, custo_unidade: custoNum });
+          return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+        });
       } else {
         const { data, error } = await supabase
           .from("insumos")
@@ -1142,8 +1151,9 @@ export default function Dashboard() {
         if (error) throw error;
         
         setInsumos(prev => {
-          if (prev.some(i => i.id === data.id)) return prev;
-          return [...prev, data];
+          const map = new Map(prev.map(i => [String(i.id), i]));
+          map.set(String(data.id), data);
+          return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
         });
       }
       setModalInsumoAberto(false);
@@ -1158,7 +1168,7 @@ export default function Dashboard() {
     try {
       const { error } = await supabase.from("insumos").delete().eq("id", id);
       if (error) throw error;
-      setInsumos(prev => prev.filter(i => i.id !== id));
+      setInsumos(prev => prev.filter(i => String(i.id) !== String(id)));
     } catch (err: any) {
       alert("Erro ao excluir insumo: " + err.message);
     }
@@ -1198,19 +1208,19 @@ export default function Dashboard() {
       alert("Selecione um insumo e informe a quantidade.");
       return;
     }
-    const insumo = insumos.find(i => i.id === ingredienteTemp.insumo_id);
+    const insumo = insumos.find(i => String(i.id) === String(ingredienteTemp.insumo_id));
     if (!insumo) return;
     const qtd = parseFloat(ingredienteTemp.qtd);
     if (isNaN(qtd) || qtd <= 0) {
       alert("Quantidade inválida.");
       return;
     }
-    const existe = receitaTemp.find(r => r.insumo_id === insumo.id);
+    const existe = receitaTemp.find(r => String(r.insumo_id) === String(insumo.id));
     if (existe) {
       if (!confirm(`O insumo "${insumo.nome}" já está na receita. Deseja adicionar mais?`)) return;
       setReceitaTemp(prev =>
         prev.map(r =>
-          r.insumo_id === insumo.id
+          String(r.insumo_id) === String(insumo.id)
             ? { ...r, qtd: r.qtd + qtd }
             : r
         )
@@ -1255,9 +1265,12 @@ export default function Dashboard() {
           .update(dados)
           .eq("id", produtoEditando.id);
         if (error) throw error;
-        setProdutos(prev =>
-          prev.map(p => p.id === produtoEditando.id ? { ...p, ...dados } : p)
-        );
+        setProdutos(prev => {
+          const map = new Map(prev.map(p => [String(p.id), p]));
+          const original = map.get(String(produtoEditando.id));
+          if(original) map.set(String(produtoEditando.id), { ...original, ...dados });
+          return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+        });
       } else {
         const { data, error } = await supabase
           .from("produtos")
@@ -1265,7 +1278,11 @@ export default function Dashboard() {
           .select()
           .single();
         if (error) throw error;
-        setProdutos(prev => [...prev, data]);
+        setProdutos(prev => {
+          const map = new Map(prev.map(p => [String(p.id), p]));
+          map.set(String(data.id), data);
+          return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+        });
       }
       setModalProdutoAberto(false);
       alert("Produto salvo com sucesso!");
@@ -1281,7 +1298,7 @@ export default function Dashboard() {
       const { error } = await supabase.from("produtos").delete().eq("id", id);
       if (error) throw error;
       
-      setProdutos((prev) => prev.filter((p) => p.id !== id));
+      setProdutos((prev) => prev.filter((p) => String(p.id) !== String(id)));
       alert("Produto excluído com sucesso!");
     } catch (err: any) {
       alert("Erro ao excluir produto: " + err.message);
@@ -1351,7 +1368,11 @@ export default function Dashboard() {
         return;
       }
 
-      setGarcons(prev => [...prev, novoGarcom].sort((a, b) => a.nome.localeCompare(b.nome)));
+      setGarcons(prev => {
+        const map = new Map(prev.map(g => [String(g.id), g]));
+        map.set(String(novoGarcom.id), novoGarcom);
+        return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+      });
       alert("Garçom cadastrado com sucesso!");
       setModalGarcomFormAberto(false);
       setModalGarcomAberto(true);
@@ -1367,7 +1388,7 @@ export default function Dashboard() {
     try {
       const { error } = await supabase.from("usuarios").delete().eq("id", id);
       if (error) throw error;
-      setGarcons(prev => prev.filter(g => g.id !== id));
+      setGarcons(prev => prev.filter(g => String(g.id) !== String(id)));
       alert("Garçom removido com sucesso!");
     } catch (err: any) {
       alert("Erro ao excluir garçom: " + err.message);
@@ -1422,9 +1443,14 @@ export default function Dashboard() {
           })
           .eq("id", clienteEditando.id);
         if (error) throw error;
-        setClientes(prev =>
-          prev.map(c => c.id === clienteEditando.id ? { ...c, nome: nome.trim(), telefone: telefone.trim() || null, email: email.trim() || null, data_nascimento: data_nascimento || null } : c)
-        );
+        setClientes(prev => {
+          const map = new Map(prev.map(c => [String(c.id), c]));
+          const c = map.get(String(clienteEditando.id));
+          if(c) map.set(String(clienteEditando.id), { ...c, nome: nome.trim(), telefone: telefone.trim() || null, email: email.trim() || null, data_nascimento: data_nascimento || null });
+          const novos = Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+          setClientesFiltrados(novos);
+          return novos;
+        });
       } else {
         const { data, error } = await supabase
           .from("clientes")
@@ -1439,8 +1465,11 @@ export default function Dashboard() {
         if (error) throw error;
         
         setClientes(prev => {
-           if(prev.some(c => c.id === data.id)) return prev;
-           return [...prev, data];
+           const map = new Map(prev.map(c => [String(c.id), c]));
+           map.set(String(data.id), data);
+           const novos = Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+           setClientesFiltrados(novos);
+           return novos;
         });
       }
       setModalClienteFormAberto(false);
@@ -1458,7 +1487,11 @@ export default function Dashboard() {
     try {
       const { error } = await supabase.from("clientes").delete().eq("id", id);
       if (error) throw error;
-      setClientes(prev => prev.filter(c => c.id !== id));
+      setClientes(prev => {
+        const novos = prev.filter(c => String(c.id) !== String(id));
+        setClientesFiltrados(novos);
+        return novos;
+      });
     } catch (err: any) {
       alert("Erro ao excluir cliente: " + err.message);
     }
@@ -1471,11 +1504,11 @@ export default function Dashboard() {
     try {
       const itensMesa = mesa.itens || [];
       for (const item of itensMesa) {
-        const produto = produtos.find((p) => p.id === item.id);
+        const produto = produtos.find((p) => String(p.id) === String(item.id));
         if (!produto || !produto.receita || produto.receita.length === 0) continue;
 
         for (const ing of produto.receita) {
-          const insumo = insumos.find((i) => i.id === ing.insumo_id);
+          const insumo = insumos.find((i) => String(i.id) === String(ing.insumo_id));
           if (!insumo) continue;
           const qtdDevolver = parseFloat(ing.qtd) * item.quantidade;
           const novoEstoque = insumo.estoque + qtdDevolver;
@@ -1487,11 +1520,12 @@ export default function Dashboard() {
 
           if (errEstoque) throw errEstoque;
 
-          setInsumos((prev) =>
-            prev.map((i) =>
-              i.id === insumo.id ? { ...i, estoque: novoEstoque } : i
-            )
-          );
+          setInsumos((prev) => {
+            const map = new Map(prev.map(i => [String(i.id), i]));
+            const i = map.get(String(insumo.id));
+            if(i) map.set(String(insumo.id), { ...i, estoque: novoEstoque });
+            return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+          });
         }
       }
 
@@ -1502,8 +1536,8 @@ export default function Dashboard() {
 
       if (errDelete) throw errDelete;
 
-      setMesas((prev) => prev.filter((m) => m.id !== mesa.id));
-      if (mesaSelecionada?.id === mesa.id) {
+      setMesas((prev) => prev.filter((m) => String(m.id) !== String(mesa.id)));
+      if (String(mesaSelecionada?.id) === String(mesa.id)) {
         setFichaAberta(false);
         setMesaSelecionada(null);
       }
@@ -1520,7 +1554,7 @@ export default function Dashboard() {
 
     let telefone = "";
     if (clienteSelecionadoId) {
-      const clienteEncontrado = clientes.find(c => c.id === clienteSelecionadoId);
+      const clienteEncontrado = clientes.find(c => String(c.id) === String(clienteSelecionadoId));
       if (clienteEncontrado && clienteEncontrado.telefone) {
         telefone = clienteEncontrado.telefone;
       }
@@ -1587,7 +1621,7 @@ export default function Dashboard() {
     return matchBusca && matchCat;
   });
 
-  const mesaOcupada = mesas.some(m => m.numero === parseInt(numeroMesa) && m.status === "ocupada");
+  const mesaOcupada = mesas.some(m => String(m.numero) === String(parseInt(numeroMesa)) && m.status === "ocupada");
 
   if (carregando) {
     return (
@@ -1661,7 +1695,7 @@ export default function Dashboard() {
             <p className="text-zinc-500 col-span-full text-center py-12 font-bold uppercase text-sm">Nenhuma mesa ocupada no momento.</p>
           ) : (
             mesas.map((mesa) => {
-              const temPedidoCozinha = pedidosCozinha.some(p => p.mesa == mesa.numero && p.cliente === mesa.cliente);
+              const temPedidoCozinha = pedidosCozinha.some(p => String(p.mesa) === String(mesa.numero) && p.cliente === mesa.cliente);
               return (
                 <div key={mesa.id} className="relative p-4 md:p-6 rounded-2xl border border-yellow-500/50 bg-yellow-500/10 h-40 md:h-48 flex flex-col justify-between cursor-pointer transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-yellow-500/5" onClick={() => abrirFicha(mesa)}>
                   <div className="flex justify-between items-start w-full">
@@ -1739,7 +1773,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== MODAL GERENCIAR CLIENTES (COM PESQUISA MANTIDA) ========== */}
+      {/* ========== MODAL GERENCIAR CLIENTES ========== */}
       {modalClientesAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -1839,31 +1873,51 @@ export default function Dashboard() {
 
       {/* MODAL ADICIONAR GARÇOM */}
       {modalGarcomAberto && isGerente && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
+            <div className="p-4 md:p-6 border-b border-zinc-800 flex justify-between items-center shrink-0">
+              <h3 className="text-xl md:text-2xl font-black text-cyan-500 uppercase italic">👤 Garçons Cadastrados</h3>
+              <button onClick={() => setModalGarcomAberto(false)} className="text-zinc-500 hover:text-zinc-300 text-2xl">✕</button>
+            </div>
+            <div className="p-4 md:p-6">
+              <button onClick={() => abrirFormGarcom()} className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-3 rounded-xl text-xs font-black uppercase transition-all mb-6 w-full sm:w-auto shadow-xl">+ Novo Garçom</button>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm min-w-[500px]">
+                  <thead className="bg-zinc-950 text-zinc-500 text-[10px] font-black uppercase border-b border-zinc-800">
+                    <tr><th className="p-3">Nome</th><th className="p-3">Email (Login)</th><th className="p-3 text-center">Ações</th></tr>
+                  </thead>
+                  <tbody>
+                    {garcons.length === 0 ? (
+                      <tr><td colSpan={3} className="p-8 text-center text-zinc-500 font-bold uppercase text-sm">Nenhum garçom cadastrado.</td></tr>
+                    ) : (
+                      garcons.map((g) => (
+                        <tr key={g.id} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
+                          <td className="p-3 font-bold uppercase">{g.nome}</td><td className="p-3 text-zinc-400">{g.email}</td>
+                          <td className="p-3 text-center"><button onClick={() => excluirGarcom(g.id)} className="text-red-500 hover:text-red-400 text-xs font-black uppercase">🗑️ Excluir Acesso</button></td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL FORMULÁRIO GARÇOM */}
+      {modalGarcomFormAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl p-4 md:p-6">
-            <h3 className="text-xl md:text-2xl font-black text-cyan-500 uppercase italic mb-6">👤 Adicionar Garçom</h3>
+            <h3 className="text-xl md:text-2xl font-black text-cyan-500 uppercase italic mb-6">👤 Novo Garçom</h3>
             <form onSubmit={adicionarGarcom} className="space-y-4">
-              <div>
-                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Nome</label>
-                <input type="text" value={formGarcom.nome} onChange={(e) => setFormGarcom({ ...formGarcom, nome: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required />
-              </div>
-              <div>
-                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Email (login)</label>
-                <input type="email" value={formGarcom.email} onChange={(e) => setFormGarcom({ ...formGarcom, email: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required />
-              </div>
-              <div>
-                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Senha</label>
-                <input type="password" value={formGarcom.senha} onChange={(e) => setFormGarcom({ ...formGarcom, senha: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required />
-              </div>
-              <div>
-                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Confirmar Senha</label>
-                <input type="password" value={formGarcom.confirmarSenha} onChange={(e) => setFormGarcom({ ...formGarcom, confirmarSenha: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required />
-              </div>
+              <div><label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Nome</label><input type="text" value={formGarcom.nome} onChange={(e) => setFormGarcom({ ...formGarcom, nome: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required /></div>
+              <div><label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Email (login)</label><input type="email" value={formGarcom.email} onChange={(e) => setFormGarcom({ ...formGarcom, email: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required /></div>
+              <div><label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Senha</label><input type="password" value={formGarcom.senha} onChange={(e) => setFormGarcom({ ...formGarcom, senha: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required /></div>
+              <div><label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Confirmar Senha</label><input type="password" value={formGarcom.confirmarSenha} onChange={(e) => setFormGarcom({ ...formGarcom, confirmarSenha: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required /></div>
               <div className="flex gap-3 mt-6">
-                <button type="button" onClick={() => setModalGarcomAberto(false)} className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all">Cancelar</button>
-                <button type="submit" disabled={cadastrandoGarcom} className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                  {cadastrandoGarcom ? "Cadastrando..." : "Salvar"}
-                </button>
+                <button type="button" onClick={() => { setModalGarcomFormAberto(false); setModalGarcomAberto(true); }} className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all">Cancelar</button>
+                <button type="submit" disabled={cadastrandoGarcom} className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed">{cadastrandoGarcom ? "Salvando..." : "Salvar"}</button>
               </div>
             </form>
           </div>
@@ -1938,10 +1992,7 @@ export default function Dashboard() {
               {pagamentosFiado.map((pag) => (
                 <div key={pag.id} className="flex flex-col md:flex-row items-center gap-3 bg-zinc-950 p-3 rounded-xl border border-zinc-800">
                   <select value={pag.metodo} onChange={(e) => atualizarMetodoPagamentoFiado(pag.id, e.target.value)} className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-xs w-full md:w-32 outline-none focus:border-orange-500">
-                    <option value="dinheiro">Dinheiro</option>
-                    <option value="pix">PIX</option>
-                    <option value="debito">Cartão Débito</option>
-                    <option value="credito">Cartão Crédito</option>
+                    <option value="dinheiro">Dinheiro</option><option value="pix">PIX</option><option value="debito">Cartão Débito</option><option value="credito">Cartão Crédito</option>
                   </select>
                   <div className="flex w-full gap-2 items-center">
                     <input type="number" step="0.01" min="0" value={pag.valor || ""} onChange={(e) => { const val = parseFloat(e.target.value) || 0; atualizarValorPagamentoFiado(pag.id, val); }} placeholder="0,00" className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold w-full md:w-28 text-right outline-none focus:border-orange-500" />
@@ -2039,7 +2090,7 @@ export default function Dashboard() {
                   </select>
                 </div>
                 <div><label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Preço (R$)</label><input type="number" step="0.01" value={formProduto.preco} onChange={(e) => setFormProduto({ ...formProduto, preco: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-yellow-500 outline-none" required /></div>
-                <div className="flex items-end"><span className="text-xs text-zinc-500 font-bold">Custo estimado: R$ {receitaTemp.reduce((acc, i) => acc + (i.qtd * (insumos.find(inss => inss.id === i.insumo_id)?.custo_unidade || 0)), 0).toFixed(2)}</span></div>
+                <div className="flex items-end"><span className="text-xs text-zinc-500 font-bold">Custo estimado: R$ {receitaTemp.reduce((acc, i) => acc + (i.qtd * (insumos.find(inss => String(inss.id) === String(i.insumo_id))?.custo_unidade || 0)), 0).toFixed(2)}</span></div>
               </div>
 
               <div className="border-t border-zinc-800 pt-4 mt-4">
@@ -2105,7 +2156,7 @@ export default function Dashboard() {
                 <p className="text-zinc-500 text-center py-8 font-bold text-sm">Nenhum produto encontrado.</p>
               ) : (
                 produtosFiltrados.map((prod) => {
-                  const qtd = pedidoAtual.find((i) => i.id === prod.id)?.quantidade || 0;
+                  const qtd = pedidoAtual.find((i) => String(i.id) === String(prod.id))?.quantidade || 0;
                   return (
                     <div key={prod.id} className={`p-4 rounded-xl border transition-all flex justify-between items-center ${qtd > 0 ? "border-yellow-500/40 bg-yellow-500/5" : "border-zinc-800 bg-zinc-900/30"}`}>
                       <div>
