@@ -39,9 +39,10 @@ export default function Dashboard() {
   const [pedidosCozinha, setPedidosCozinha] = useState<any[]>([]);
   const [fiados, setFiados] = useState<any[]>([]);
   const [clientes, setClientes] = useState<any[]>([]);
+  const [garcons, setGarcons] = useState<any[]>([]); // Novo estado para Garçons
   const [carregando, setCarregando] = useState(true);
 
-  // Estados dos modais
+  // Estados dos modais principais
   const [modalAberto, setModalAberto] = useState(false);
   const [numeroMesa, setNumeroMesa] = useState("");
   const [clienteMesa, setClienteMesa] = useState("");
@@ -69,7 +70,7 @@ export default function Dashboard() {
   // Estados para clientes (checkout e modal geral)
   const [clienteSelecionadoId, setClienteSelecionadoId] = useState<string>("");
   const [buscaCliente, setBuscaCliente] = useState("");
-  const [buscaClienteModal, setBuscaClienteModal] = useState(""); // Novo estado para pesquisa no Modal de Clientes
+  const [buscaClienteModal, setBuscaClienteModal] = useState(""); 
   const [mostrarNovoCliente, setMostrarNovoCliente] = useState(false);
   const [novoClienteForm, setNovoClienteForm] = useState({
     nome: "",
@@ -115,8 +116,9 @@ export default function Dashboard() {
   const [receitaTemp, setReceitaTemp] = useState<any[]>([]);
   const [ingredienteTemp, setIngredienteTemp] = useState({ insumo_id: "", qtd: "" });
 
-  // Estados para adicionar garçom
+  // Estados para gerenciamento de Garçons
   const [modalGarcomAberto, setModalGarcomAberto] = useState(false);
+  const [modalGarcomFormAberto, setModalGarcomFormAberto] = useState(false); // Novo estado
   const [formGarcom, setFormGarcom] = useState({
     nome: "",
     email: "",
@@ -158,7 +160,6 @@ export default function Dashboard() {
         .select("*")
         .eq("status", "ocupada")
         .order("numero", { ascending: true });
-
       if (errMesas) throw new Error("Erro ao buscar mesas: " + errMesas.message);
       setMesas(mesasData || []);
 
@@ -197,6 +198,16 @@ export default function Dashboard() {
       if (errClientes) throw new Error("Erro ao buscar clientes: " + errClientes.message);
       setClientes(clientesData || []);
       setClientesFiltrados(clientesData || []);
+
+      // Busca de garçons no carregamento
+      const { data: garconsData, error: errGarcons } = await supabase
+        .from("usuarios")
+        .select("*")
+        .eq("role", "colaborador")
+        .order("nome", { ascending: true });
+      if (errGarcons) throw new Error("Erro ao buscar garçons: " + errGarcons.message);
+      setGarcons(garconsData || []);
+
     } catch (err: any) {
       alert("Erro ao carregar dados: " + err.message);
     } finally {
@@ -204,7 +215,7 @@ export default function Dashboard() {
     }
   }
 
-  // Realtime
+  // Realtime (Otimizado - consome apenas pacotes e não recarrega o banco)
   useEffect(() => {
     if (!usuario) return;
 
@@ -215,7 +226,10 @@ export default function Dashboard() {
         { event: "*", schema: "public", table: "mesas" },
         (payload) => {
           if (payload.eventType === 'INSERT' && payload.new.status === 'ocupada') {
-            setMesas((prev) => [...prev, payload.new].sort((a, b) => a.numero - b.numero));
+            setMesas((prev) => {
+              if (prev.some(m => m.id === payload.new.id)) return prev;
+              return [...prev, payload.new].sort((a, b) => a.numero - b.numero);
+            });
           } else if (payload.eventType === 'UPDATE') {
             setMesas((prev) => {
               if (payload.new.status !== 'ocupada') {
@@ -1248,7 +1262,22 @@ export default function Dashboard() {
     }
   }
 
-  // ========== FUNÇÃO ADICIONAR GARÇOM ==========
+  // ========== FUNÇÕES DE GERENCIAMENTO DE GARÇONS ==========
+
+  function abrirGarcons() {
+    if (usuario?.role !== "gerente") {
+      alert("Apenas gerentes podem gerenciar garçons.");
+      return;
+    }
+    setModalGarcomAberto(true);
+  }
+
+  function abrirFormGarcom() {
+    setFormGarcom({ nome: "", email: "", senha: "", confirmarSenha: "" });
+    setModalGarcomAberto(false);
+    setModalGarcomFormAberto(true);
+  }
+
   async function adicionarGarcom(e: React.FormEvent) {
     e.preventDefault();
     const { nome, email, senha, confirmarSenha } = formGarcom;
@@ -1287,41 +1316,50 @@ export default function Dashboard() {
 
       if (authError) {
         if (authError.message.includes("rate limit") || authError.message.includes("Rate limit")) {
-          alert("O sistema está com um limite de requisições para criação de novos usuários. Aguarde alguns minutos e tente novamente.");
+          alert("Aguarde alguns minutos devido ao limite de requisições de criação.");
         } else {
-          alert("Erro ao criar usuário: " + authError.message);
+          alert("Erro ao criar usuário na base Auth: " + authError.message);
         }
         setCadastrandoGarcom(false);
         return;
       }
 
-      if (!authData.user) {
-        alert("Erro ao criar usuário. Tente novamente.");
-        setCadastrandoGarcom(false);
-        return;
-      }
-
-      const { error: perfilError } = await supabase
+      const { data: novoGarcom, error: perfilError } = await supabase
         .from("usuarios")
         .insert([{
           nome: nome.trim(),
           email: email.trim().toLowerCase(),
           role: "colaborador",
-        }]);
+        }])
+        .select()
+        .single();
 
       if (perfilError) {
-        alert("Erro ao criar perfil: " + perfilError.message);
+        alert("Erro ao criar perfil de usuário: " + perfilError.message);
         setCadastrandoGarcom(false);
         return;
       }
 
+      setGarcons(prev => [...prev, novoGarcom].sort((a, b) => a.nome.localeCompare(b.nome)));
       alert("Garçom cadastrado com sucesso!");
-      setModalGarcomAberto(false);
-      setFormGarcom({ nome: "", email: "", senha: "", confirmarSenha: "" });
+      setModalGarcomFormAberto(false);
+      setModalGarcomAberto(true);
     } catch (err: any) {
       alert("Erro inesperado: " + err.message);
     } finally {
       setCadastrandoGarcom(false);
+    }
+  }
+
+  async function excluirGarcom(id: string) {
+    if (!confirm("Deseja realmente excluir este garçom? O acesso dele será revogado da tela do sistema.")) return;
+    try {
+      const { error } = await supabase.from("usuarios").delete().eq("id", id);
+      if (error) throw error;
+      setGarcons(prev => prev.filter(g => g.id !== id));
+      alert("Garçom removido com sucesso!");
+    } catch (err: any) {
+      alert("Erro ao excluir garçom: " + err.message);
     }
   }
 
@@ -1332,7 +1370,7 @@ export default function Dashboard() {
       alert("Apenas gerentes podem gerenciar clientes.");
       return;
     }
-    setBuscaClienteModal(""); // Limpa a busca sempre que abrir
+    setBuscaClienteModal(""); 
     setModalClientesAberto(true);
   }
 
@@ -1580,7 +1618,7 @@ export default function Dashboard() {
               <button onClick={() => setModalAniversariantesAberto(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl whitespace-nowrap">🎉 Aniversários</button>
               <button onClick={() => router.push("/caixa")} className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl whitespace-nowrap">💰 Caixa</button>
               <button onClick={abrirClientes} className="bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl whitespace-nowrap">👤 Clientes ({clientes.length})</button>
-              <button onClick={() => setModalGarcomAberto(true)} className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl whitespace-nowrap">👤 Garçons</button>
+              <button onClick={abrirGarcons} className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl whitespace-nowrap">👤 Garçons ({garcons.length})</button>
               <button onClick={abrirFiados} className="bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl whitespace-nowrap">📒 Fiados ({fiados.length})</button>
               <button onClick={abrirEstoque} className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl whitespace-nowrap">📦 Estoque</button>
               <button onClick={() => setCozinhaAberta(true)} className={`relative px-4 py-2 rounded-xl flex items-center gap-2 font-bold text-xs transition-all shadow-xl whitespace-nowrap ${pedidosCozinha.length > 0 ? "bg-red-600 text-white animate-pulse shadow-[0_0_15px_rgba(220,38,38,0.6)]" : "bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-yellow-500"}`}>
@@ -1630,6 +1668,88 @@ export default function Dashboard() {
           )}
         </div>
       </main>
+
+      {/* ========== MODAIS GERAIS (ESTRUTURAS MANTIDAS E ADICIONADOS OS DE GARÇONS E BUSCA EM CLIENTES) ========== */}
+
+      {/* ========== MODAL GERENCIAR GARÇONS ========== */}
+      {modalGarcomAberto && isGerente && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
+            <div className="p-4 md:p-6 border-b border-zinc-800 flex justify-between items-center shrink-0">
+              <h3 className="text-xl md:text-2xl font-black text-cyan-500 uppercase italic">👤 Garçons Cadastrados</h3>
+              <button onClick={() => setModalGarcomAberto(false)} className="text-zinc-500 hover:text-zinc-300 text-2xl">✕</button>
+            </div>
+            
+            <div className="p-4 md:p-6">
+              <button onClick={() => abrirFormGarcom()} className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-3 rounded-xl text-xs font-black uppercase transition-all mb-6 w-full sm:w-auto shadow-xl">
+                + Novo Garçom
+              </button>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm min-w-[500px]">
+                  <thead className="bg-zinc-950 text-zinc-500 text-[10px] font-black uppercase border-b border-zinc-800">
+                    <tr>
+                      <th className="p-3">Nome</th>
+                      <th className="p-3">Email (Login)</th>
+                      <th className="p-3 text-center">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {garcons.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="p-8 text-center text-zinc-500 font-bold uppercase text-sm">Nenhum garçom cadastrado.</td>
+                      </tr>
+                    ) : (
+                      garcons.map((g) => (
+                        <tr key={g.id} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
+                          <td className="p-3 font-bold uppercase">{g.nome}</td>
+                          <td className="p-3 text-zinc-400">{g.email}</td>
+                          <td className="p-3 text-center">
+                            <button onClick={() => excluirGarcom(g.id)} className="text-red-500 hover:text-red-400 text-xs font-black uppercase">🗑️ Excluir Acesso</button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL ADICIONAR NOVO GARÇOM */}
+      {modalGarcomFormAberto && isGerente && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl p-4 md:p-6">
+            <h3 className="text-xl md:text-2xl font-black text-cyan-500 uppercase italic mb-6">👤 Novo Garçom</h3>
+            <form onSubmit={adicionarGarcom} className="space-y-4">
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Nome</label>
+                <input type="text" value={formGarcom.nome} onChange={(e) => setFormGarcom({ ...formGarcom, nome: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required />
+              </div>
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Email (login)</label>
+                <input type="email" value={formGarcom.email} onChange={(e) => setFormGarcom({ ...formGarcom, email: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required />
+              </div>
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Senha</label>
+                <input type="password" value={formGarcom.senha} onChange={(e) => setFormGarcom({ ...formGarcom, senha: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required />
+              </div>
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Confirmar Senha</label>
+                <input type="password" value={formGarcom.confirmarSenha} onChange={(e) => setFormGarcom({ ...formGarcom, confirmarSenha: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required />
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button type="button" onClick={() => { setModalGarcomFormAberto(false); setModalGarcomAberto(true); }} className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all">Cancelar</button>
+                <button type="submit" disabled={cadastrandoGarcom} className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                  {cadastrandoGarcom ? "Salvando..." : "Salvar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ========== MODAL ANIVERSARIANTES ========== */}
       {modalAniversariantesAberto && isGerente && (
@@ -1686,7 +1806,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== MODAL GERENCIAR CLIENTES (COM PESQUISA) ========== */}
+      {/* ========== MODAL GERENCIAR CLIENTES (COM PESQUISA MANTIDA) ========== */}
       {modalClientesAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -1778,39 +1898,6 @@ export default function Dashboard() {
               <div className="flex gap-3 mt-6">
                 <button type="button" onClick={() => { setModalClienteFormAberto(false); setModalClientesAberto(true); setClienteEditando(null); }} className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all">Cancelar</button>
                 <button type="submit" className="flex-1 bg-pink-600 hover:bg-pink-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all">Salvar</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL ADICIONAR GARÇOM */}
-      {modalGarcomAberto && isGerente && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl p-4 md:p-6">
-            <h3 className="text-xl md:text-2xl font-black text-cyan-500 uppercase italic mb-6">👤 Adicionar Garçom</h3>
-            <form onSubmit={adicionarGarcom} className="space-y-4">
-              <div>
-                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Nome</label>
-                <input type="text" value={formGarcom.nome} onChange={(e) => setFormGarcom({ ...formGarcom, nome: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required />
-              </div>
-              <div>
-                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Email (login)</label>
-                <input type="email" value={formGarcom.email} onChange={(e) => setFormGarcom({ ...formGarcom, email: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required />
-              </div>
-              <div>
-                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Senha</label>
-                <input type="password" value={formGarcom.senha} onChange={(e) => setFormGarcom({ ...formGarcom, senha: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required />
-              </div>
-              <div>
-                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Confirmar Senha</label>
-                <input type="password" value={formGarcom.confirmarSenha} onChange={(e) => setFormGarcom({ ...formGarcom, confirmarSenha: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required />
-              </div>
-              <div className="flex gap-3 mt-6">
-                <button type="button" onClick={() => setModalGarcomAberto(false)} className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all">Cancelar</button>
-                <button type="submit" disabled={cadastrandoGarcom} className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                  {cadastrandoGarcom ? "Cadastrando..." : "Salvar"}
-                </button>
               </div>
             </form>
           </div>
