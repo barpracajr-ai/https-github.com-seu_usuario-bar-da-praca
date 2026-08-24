@@ -66,9 +66,10 @@ export default function Dashboard() {
   const [numeroPessoas, setNumeroPessoas] = useState(1);
   const [dividirIgual, setDividirIgual] = useState(false);
 
-  // Estados para clientes (checkout)
+  // Estados para clientes (checkout e modal geral)
   const [clienteSelecionadoId, setClienteSelecionadoId] = useState<string>("");
   const [buscaCliente, setBuscaCliente] = useState("");
+  const [buscaClienteModal, setBuscaClienteModal] = useState(""); // Novo estado para pesquisa no Modal de Clientes
   const [mostrarNovoCliente, setMostrarNovoCliente] = useState(false);
   const [novoClienteForm, setNovoClienteForm] = useState({
     nome: "",
@@ -836,8 +837,6 @@ export default function Dashboard() {
         }
       }
 
-      // Como o pagamento parcial já é resolvido no botão "pagar agora" (que mantém a mesa se houver saldo), 
-      // clicar em Finalizar Conta encerra a mesa definitivamente.
       await supabase.from("mesas").delete().eq("id", mesaSelecionada.id);
       setMesas(prev => prev.filter(m => m.id !== mesaSelecionada.id));
       setMesaSelecionada(null);
@@ -1333,6 +1332,7 @@ export default function Dashboard() {
       alert("Apenas gerentes podem gerenciar clientes.");
       return;
     }
+    setBuscaClienteModal(""); // Limpa a busca sempre que abrir
     setModalClientesAberto(true);
   }
 
@@ -1494,7 +1494,6 @@ export default function Dashboard() {
 
     const total = Number(mesaSelecionada.total);
 
-    // Texto de WhatsApp modificado para ser acolhedor, vibrante e chamar para nova visita
     const clienteNome = mesaSelecionada.cliente || "amigo(a)";
     const mensagem = `Olá, ${clienteNome}! 🎉\n\nQue alegria receber você aqui no *Bar da Praça*! 🍻\n\nAqui está o resumo da sua saideira de hoje:\n\n${itensTexto}\n\n💰 **Total: R$ ${total.toFixed(2).replace('.', ',')}**\n\nEsperamos que você tenha curtido o momento com a gente! Volte logo, a casa é sua! 💛👋`;
     
@@ -1517,6 +1516,14 @@ export default function Dashboard() {
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
   ];
+
+  // ========== FILTRO DE CLIENTES NO MODAL DE GERENCIAMENTO ==========
+  const clientesFiltradosModal = clientes.filter(c => {
+    const termo = buscaClienteModal.toLowerCase();
+    const nomeBate = c.nome.toLowerCase().includes(termo);
+    const telefoneBate = c.telefone && c.telefone.includes(termo);
+    return nomeBate || telefoneBate;
+  });
 
   // ========== RENDERIZAÇÃO ==========
 
@@ -1543,7 +1550,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50 overflow-x-hidden">
-      {/* CABEÇALHO - Ajustado para não estourar tela em celulares */}
+      {/* CABEÇALHO */}
       <header className="border-b border-zinc-800 bg-zinc-900/50 px-4 py-3 md:px-6 md:py-4 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 backdrop-blur-md sticky top-0 z-10 w-full">
         <div className="flex items-center justify-between w-full lg:w-auto">
           <div className="flex items-center gap-4">
@@ -1555,7 +1562,6 @@ export default function Dashboard() {
               <p className="text-[10px] md:text-xs text-zinc-400 mt-1">Bem-vindo, {usuario.nome}</p>
             </div>
           </div>
-          {/* Botão de sair no mobile */}
           <div className="lg:hidden flex flex-col items-end">
             <span className="text-[10px] font-bold text-zinc-500 uppercase">{usuario.role}</span>
             <button
@@ -1567,79 +1573,25 @@ export default function Dashboard() {
           </div>
         </div>
         
-        {/* Carrossel Horizontal para menus no mobile */}
         <div className="flex items-center gap-2 overflow-x-auto w-full pb-2 lg:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {isGerente && (
             <>
-              <button
-                onClick={() => router.push("/relatorios")}
-                className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl whitespace-nowrap"
-              >
-                📊 Relatórios
-              </button>
-              {/* NOVO BOTÃO ANIVERSÁRIOS */}
-              <button
-                onClick={() => setModalAniversariantesAberto(true)}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl whitespace-nowrap"
-              >
-                🎉 Aniversários
-              </button>
-              <button
-                onClick={() => router.push("/caixa")}
-                className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl whitespace-nowrap"
-              >
-                💰 Caixa
-              </button>
-              <button
-                onClick={abrirClientes}
-                className="bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl whitespace-nowrap"
-              >
-                👤 Clientes ({clientes.length})
-              </button>
-              <button
-                onClick={() => setModalGarcomAberto(true)}
-                className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl whitespace-nowrap"
-              >
-                👤 Garçons
-              </button>
-              <button
-                onClick={abrirFiados}
-                className="bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl whitespace-nowrap"
-              >
-                📒 Fiados ({fiados.length})
-              </button>
-              <button
-                onClick={abrirEstoque}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl whitespace-nowrap"
-              >
-                📦 Estoque
-              </button>
-              <button
-                onClick={() => setCozinhaAberta(true)}
-                className={`relative px-4 py-2 rounded-xl flex items-center gap-2 font-bold text-xs transition-all shadow-xl whitespace-nowrap ${
-                  pedidosCozinha.length > 0
-                    ? "bg-red-600 text-white animate-pulse shadow-[0_0_15px_rgba(220,38,38,0.6)]"
-                    : "bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-yellow-500"
-                }`}
-              >
+              <button onClick={() => router.push("/relatorios")} className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl whitespace-nowrap">📊 Relatórios</button>
+              <button onClick={() => setModalAniversariantesAberto(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl whitespace-nowrap">🎉 Aniversários</button>
+              <button onClick={() => router.push("/caixa")} className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl whitespace-nowrap">💰 Caixa</button>
+              <button onClick={abrirClientes} className="bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl whitespace-nowrap">👤 Clientes ({clientes.length})</button>
+              <button onClick={() => setModalGarcomAberto(true)} className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl whitespace-nowrap">👤 Garçons</button>
+              <button onClick={abrirFiados} className="bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl whitespace-nowrap">📒 Fiados ({fiados.length})</button>
+              <button onClick={abrirEstoque} className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl whitespace-nowrap">📦 Estoque</button>
+              <button onClick={() => setCozinhaAberta(true)} className={`relative px-4 py-2 rounded-xl flex items-center gap-2 font-bold text-xs transition-all shadow-xl whitespace-nowrap ${pedidosCozinha.length > 0 ? "bg-red-600 text-white animate-pulse shadow-[0_0_15px_rgba(220,38,38,0.6)]" : "bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-yellow-500"}`}>
                 <span>🍳 Cozinha</span>
-                {pedidosCozinha.length > 0 && (
-                  <span className="bg-white text-red-600 rounded-full px-2 py-0.5 text-[10px] font-black">
-                    {pedidosCozinha.length}
-                  </span>
-                )}
+                {pedidosCozinha.length > 0 && <span className="bg-white text-red-600 rounded-full px-2 py-0.5 text-[10px] font-black">{pedidosCozinha.length}</span>}
               </button>
             </>
           )}
-          {/* Botão de sair no Desktop */}
           <div className="hidden lg:flex items-center gap-4 ml-2">
             <span className="text-xs font-bold text-zinc-500 uppercase">{usuario.role}</span>
-            <button
-              onClick={() => { localStorage.removeItem("usuario"); router.push("/"); }}
-              className="text-xs text-red-500 hover:text-red-400 font-bold uppercase transition-colors"
-            >
-              Sair
-            </button>
+            <button onClick={() => { localStorage.removeItem("usuario"); router.push("/"); }} className="text-xs text-red-500 hover:text-red-400 font-bold uppercase transition-colors">Sair</button>
           </div>
         </div>
       </header>
@@ -1648,66 +1600,27 @@ export default function Dashboard() {
       <main className="p-4 md:p-6 max-w-7xl mx-auto w-full">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl md:text-2xl font-black uppercase italic">Salão</h2>
-          <button
-            onClick={() => {
-              setNumeroMesa("");
-              setClienteMesa("");
-              setModalAberto(true);
-            }}
-            className="bg-yellow-500 text-zinc-950 px-4 md:px-6 py-2.5 md:py-3 rounded-2xl font-black text-xs md:text-sm hover:bg-yellow-400 transition-all shadow-xl"
-          >
-            + Nova Mesa
-          </button>
+          <button onClick={() => { setNumeroMesa(""); setClienteMesa(""); setModalAberto(true); }} className="bg-yellow-500 text-zinc-950 px-4 md:px-6 py-2.5 md:py-3 rounded-2xl font-black text-xs md:text-sm hover:bg-yellow-400 transition-all shadow-xl">+ Nova Mesa</button>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           {mesas.length === 0 ? (
-            <p className="text-zinc-500 col-span-full text-center py-12 font-bold uppercase text-sm">
-              Nenhuma mesa ocupada no momento.
-            </p>
+            <p className="text-zinc-500 col-span-full text-center py-12 font-bold uppercase text-sm">Nenhuma mesa ocupada no momento.</p>
           ) : (
             mesas.map((mesa) => {
               const temPedidoCozinha = pedidosCozinha.some(p => p.mesa == mesa.numero && p.cliente === mesa.cliente);
               return (
-                <div
-                  key={mesa.id}
-                  className="relative p-4 md:p-6 rounded-2xl border border-yellow-500/50 bg-yellow-500/10 h-40 md:h-48 flex flex-col justify-between cursor-pointer transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-yellow-500/5"
-                  onClick={() => abrirFicha(mesa)}
-                >
+                <div key={mesa.id} className="relative p-4 md:p-6 rounded-2xl border border-yellow-500/50 bg-yellow-500/10 h-40 md:h-48 flex flex-col justify-between cursor-pointer transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-yellow-500/5" onClick={() => abrirFicha(mesa)}>
                   <div className="flex justify-between items-start w-full">
-                    <span className="text-3xl md:text-4xl font-black italic text-yellow-500 leading-none">
-                      {String(mesa.numero).padStart(2, "0")}
-                    </span>
+                    <span className="text-3xl md:text-4xl font-black italic text-yellow-500 leading-none">{String(mesa.numero).padStart(2, "0")}</span>
                     <div className="flex flex-col md:flex-row items-end md:items-start gap-1 md:gap-2">
-                      <span className="bg-yellow-500 text-zinc-950 text-[9px] md:text-[10px] font-black px-2 py-1 rounded-md uppercase text-right md:text-left truncate max-w-[80px] md:max-w-[120px]">
-                        {mesa.cliente}
-                      </span>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); excluirMesa(mesa); }}
-                        className="text-red-500 hover:text-red-400 p-1 bg-zinc-900 rounded-full transition-colors"
-                        title="Excluir mesa"
-                      >
-                        🗑️
-                      </button>
+                      <span className="bg-yellow-500 text-zinc-950 text-[9px] md:text-[10px] font-black px-2 py-1 rounded-md uppercase text-right md:text-left truncate max-w-[80px] md:max-w-[120px]">{mesa.cliente}</span>
+                      <button onClick={(e) => { e.stopPropagation(); excluirMesa(mesa); }} className="text-red-500 hover:text-red-400 p-1 bg-zinc-900 rounded-full transition-colors" title="Excluir mesa">🗑️</button>
                     </div>
                   </div>
-                  
                   <div className="space-y-2 mt-2">
-                    <p className="text-xs md:text-sm font-black uppercase tracking-widest text-yellow-500">
-                      R$ {Number(mesa.total).toFixed(2)}
-                    </p>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setMesaSelecionada(mesa);
-                        setCozinhaAberta(true);
-                      }}
-                      className={`w-full text-white py-1.5 rounded-lg text-[9px] md:text-[10px] font-black uppercase transition-all shadow-lg ${
-                        temPedidoCozinha
-                          ? "bg-red-600 animate-pulse shadow-[0_0_15px_rgba(220,38,38,0.6)]"
-                          : "bg-yellow-600 hover:bg-yellow-500"
-                      }`}
-                    >
+                    <p className="text-xs md:text-sm font-black uppercase tracking-widest text-yellow-500">R$ {Number(mesa.total).toFixed(2)}</p>
+                    <button onClick={(e) => { e.stopPropagation(); setMesaSelecionada(mesa); setCozinhaAberta(true); }} className={`w-full text-white py-1.5 rounded-lg text-[9px] md:text-[10px] font-black uppercase transition-all shadow-lg ${temPedidoCozinha ? "bg-red-600 animate-pulse shadow-[0_0_15px_rgba(220,38,38,0.6)]" : "bg-yellow-600 hover:bg-yellow-500"}`}>
                       {temPedidoCozinha ? "⏳ Pendente" : "🟡 Ver Cozinha"}
                     </button>
                   </div>
@@ -1724,12 +1637,7 @@ export default function Dashboard() {
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
             <div className="p-4 md:p-6 border-b border-zinc-800 flex justify-between items-center shrink-0">
               <h3 className="text-xl md:text-2xl font-black text-indigo-500 uppercase italic">🎉 Aniversariantes</h3>
-              <button
-                onClick={() => setModalAniversariantesAberto(false)}
-                className="text-zinc-500 hover:text-zinc-300 text-2xl"
-              >
-                ✕
-              </button>
+              <button onClick={() => setModalAniversariantesAberto(false)} className="text-zinc-500 hover:text-zinc-300 text-2xl">✕</button>
             </div>
             
             <div className="p-4 md:p-6 flex flex-col gap-4">
@@ -1778,9 +1686,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== OUTROS MODAIS (Ajustados para paddings menores no mobile) ========== */}
-      
-      {/* MODAL GERENCIAR CLIENTES */}
+      {/* ========== MODAL GERENCIAR CLIENTES (COM PESQUISA) ========== */}
       {modalClientesAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -1789,9 +1695,22 @@ export default function Dashboard() {
               <button onClick={() => setModalClientesAberto(false)} className="text-zinc-500 hover:text-zinc-300 text-2xl">✕</button>
             </div>
             <div className="p-4 md:p-6">
-              <button onClick={() => abrirFormCliente()} className="bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all mb-4 w-full md:w-auto">
-                + Novo Cliente
-              </button>
+              
+              <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    placeholder="Buscar cliente por nome ou telefone..."
+                    value={buscaClienteModal}
+                    onChange={(e) => setBuscaClienteModal(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-50 font-bold focus:border-pink-500 outline-none"
+                  />
+                </div>
+                <button onClick={() => abrirFormCliente()} className="bg-pink-600 hover:bg-pink-500 text-white px-4 py-3 rounded-xl text-xs font-black uppercase transition-all w-full sm:w-auto shrink-0 shadow-xl">
+                  + Novo Cliente
+                </button>
+              </div>
+
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm min-w-[500px]">
                   <thead className="bg-zinc-950 text-zinc-500 text-[10px] font-black uppercase border-b border-zinc-800">
@@ -1804,18 +1723,26 @@ export default function Dashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {clientes.map((c) => (
-                      <tr key={c.id} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
-                        <td className="p-3 font-bold uppercase">{c.nome}</td>
-                        <td className="p-3 text-zinc-400">{c.telefone || "-"}</td>
-                        <td className="p-3 text-zinc-400">{c.email || "-"}</td>
-                        <td className="p-3 text-zinc-400">{c.data_nascimento ? new Date(c.data_nascimento).toLocaleDateString() : "-"}</td>
-                        <td className="p-3 text-center space-x-2">
-                          <button onClick={() => abrirFormCliente(c)} className="text-blue-400 hover:text-blue-300 text-xs font-black uppercase">Editar</button>
-                          <button onClick={() => excluirCliente(c.id)} className="text-red-500 hover:text-red-400 text-xs font-black uppercase">Excluir</button>
+                    {clientesFiltradosModal.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="p-8 text-center text-zinc-500 font-bold uppercase text-sm">
+                          Nenhum cliente encontrado.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      clientesFiltradosModal.map((c) => (
+                        <tr key={c.id} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
+                          <td className="p-3 font-bold uppercase">{c.nome}</td>
+                          <td className="p-3 text-zinc-400">{c.telefone || "-"}</td>
+                          <td className="p-3 text-zinc-400">{c.email || "-"}</td>
+                          <td className="p-3 text-zinc-400">{c.data_nascimento ? new Date(c.data_nascimento).toLocaleDateString() : "-"}</td>
+                          <td className="p-3 text-center space-x-2">
+                            <button onClick={() => abrirFormCliente(c)} className="text-blue-400 hover:text-blue-300 text-xs font-black uppercase">Editar</button>
+                            <button onClick={() => excluirCliente(c.id)} className="text-red-500 hover:text-red-400 text-xs font-black uppercase">Excluir</button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -2354,7 +2281,6 @@ export default function Dashboard() {
               {troco > 0 && <div className="flex justify-between"><span className="text-zinc-400 text-sm">Troco:</span><span className="font-bold text-blue-400">R$ {troco.toFixed(2)}</span></div>}
             </div>
 
-            {/* Removido o bloco "Manter mesa aberta" e deixado apenas o Fiado */}
             <div className="space-y-3 mb-6">
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-orange-950/10 border border-orange-500/30 p-3 rounded-xl">
                 <div className="flex items-center gap-2">
