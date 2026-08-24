@@ -39,7 +39,7 @@ export default function Dashboard() {
   const [pedidosCozinha, setPedidosCozinha] = useState<any[]>([]);
   const [fiados, setFiados] = useState<any[]>([]);
   const [clientes, setClientes] = useState<any[]>([]);
-  const [garcons, setGarcons] = useState<any[]>([]); // Novo estado para Garçons
+  const [garcons, setGarcons] = useState<any[]>([]);
   const [carregando, setCarregando] = useState(true);
 
   // Estados dos modais principais
@@ -118,7 +118,7 @@ export default function Dashboard() {
 
   // Estados para gerenciamento de Garçons
   const [modalGarcomAberto, setModalGarcomAberto] = useState(false);
-  const [modalGarcomFormAberto, setModalGarcomFormAberto] = useState(false); // Novo estado
+  const [modalGarcomFormAberto, setModalGarcomFormAberto] = useState(false); 
   const [formGarcom, setFormGarcom] = useState({
     nome: "",
     email: "",
@@ -199,7 +199,6 @@ export default function Dashboard() {
       setClientes(clientesData || []);
       setClientesFiltrados(clientesData || []);
 
-      // Busca de garçons no carregamento
       const { data: garconsData, error: errGarcons } = await supabase
         .from("usuarios")
         .select("*")
@@ -215,7 +214,7 @@ export default function Dashboard() {
     }
   }
 
-  // Realtime (Otimizado - consome apenas pacotes e não recarrega o banco)
+  // Realtime Otimizado (com desduplicação rigorosa para evitar "Double Dipping")
   useEffect(() => {
     if (!usuario) return;
 
@@ -250,8 +249,11 @@ export default function Dashboard() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "pedidos_cozinha" },
         (payload) => {
-          setPedidosCozinha((prev) => [...prev, payload.new]);
-          if (usuario.role === "gerente") tocarSomAlerta();
+          setPedidosCozinha((prev) => {
+            if (prev.some(p => p.id === payload.new.id)) return prev;
+            if (usuario.role === "gerente") tocarSomAlerta();
+            return [...prev, payload.new];
+          });
         }
       )
       .on(
@@ -266,7 +268,10 @@ export default function Dashboard() {
         { event: "*", schema: "public", table: "fiados" },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            setFiados((prev) => [payload.new, ...prev].sort((a, b) => new Date(b.data_criacao).getTime() - new Date(a.data_criacao).getTime()));
+            setFiados((prev) => {
+              if (prev.some(f => f.id === payload.new.id)) return prev;
+              return [payload.new, ...prev].sort((a, b) => new Date(b.data_criacao).getTime() - new Date(a.data_criacao).getTime());
+            });
           } else if (payload.eventType === 'UPDATE') {
             setFiados((prev) => prev.map((f) => f.id === payload.new.id ? payload.new : f));
           } else if (payload.eventType === 'DELETE') {
@@ -279,7 +284,10 @@ export default function Dashboard() {
         { event: "*", schema: "public", table: "insumos" },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            setInsumos((prev) => [...prev, payload.new].sort((a, b) => a.nome.localeCompare(b.nome)));
+            setInsumos((prev) => {
+              if (prev.some(i => i.id === payload.new.id)) return prev;
+              return [...prev, payload.new].sort((a, b) => a.nome.localeCompare(b.nome));
+            });
           } else if (payload.eventType === 'UPDATE') {
             setInsumos((prev) => prev.map((i) => i.id === payload.new.id ? payload.new : i).sort((a, b) => a.nome.localeCompare(b.nome)));
           } else if (payload.eventType === 'DELETE') {
@@ -293,6 +301,7 @@ export default function Dashboard() {
         (payload) => {
           if (payload.eventType === 'INSERT') {
             setClientes((prev) => {
+              if (prev.some(c => c.id === payload.new.id)) return prev;
               const novos = [...prev, payload.new].sort((a, b) => a.nome.localeCompare(b.nome));
               setClientesFiltrados(novos);
               return novos;
@@ -509,7 +518,11 @@ export default function Dashboard() {
         }
       }
 
-      setPedidosCozinha((prev) => [...prev, pedidoCozinha]);
+      setPedidosCozinha((prev) => {
+         if(prev.some(p => p.id === pedidoCozinha.id)) return prev;
+         return [...prev, pedidoCozinha];
+      });
+      
       setMesas((prev) =>
         prev.map((m) =>
           m.id === mesaSelecionada.id
@@ -741,8 +754,14 @@ export default function Dashboard() {
 
       if (error) throw error;
 
-      setClientes(prev => [...prev, data]);
-      setClientesFiltrados(prev => [...prev, data]);
+      setClientes(prev => {
+        if(prev.some(c => c.id === data.id)) return prev;
+        return [...prev, data];
+      });
+      setClientesFiltrados(prev => {
+        if(prev.some(c => c.id === data.id)) return prev;
+        return [...prev, data];
+      });
       setClienteSelecionadoId(data.id);
       setBuscaCliente(data.nome);
       setMostrarNovoCliente(false);
@@ -847,7 +866,10 @@ export default function Dashboard() {
             .select()
             .single();
           if (errInsert) throw errInsert;
-          setFiados(prev => [novoRegistro, ...prev]);
+          setFiados(prev => {
+             if(prev.some(f => f.id === novoRegistro.id)) return prev;
+             return [novoRegistro, ...prev];
+          });
         }
       }
 
@@ -1118,7 +1140,11 @@ export default function Dashboard() {
           .select()
           .single();
         if (error) throw error;
-        setInsumos(prev => [...prev, data]);
+        
+        setInsumos(prev => {
+          if (prev.some(i => i.id === data.id)) return prev;
+          return [...prev, data];
+        });
       }
       setModalInsumoAberto(false);
       alert("Insumo salvo com sucesso!");
@@ -1262,22 +1288,7 @@ export default function Dashboard() {
     }
   }
 
-  // ========== FUNÇÕES DE GERENCIAMENTO DE GARÇONS ==========
-
-  function abrirGarcons() {
-    if (usuario?.role !== "gerente") {
-      alert("Apenas gerentes podem gerenciar garçons.");
-      return;
-    }
-    setModalGarcomAberto(true);
-  }
-
-  function abrirFormGarcom() {
-    setFormGarcom({ nome: "", email: "", senha: "", confirmarSenha: "" });
-    setModalGarcomAberto(false);
-    setModalGarcomFormAberto(true);
-  }
-
+  // ========== FUNÇÃO ADICIONAR GARÇOM ==========
   async function adicionarGarcom(e: React.FormEvent) {
     e.preventDefault();
     const { nome, email, senha, confirmarSenha } = formGarcom;
@@ -1426,7 +1437,11 @@ export default function Dashboard() {
           .select()
           .single();
         if (error) throw error;
-        setClientes(prev => [...prev, data]);
+        
+        setClientes(prev => {
+           if(prev.some(c => c.id === data.id)) return prev;
+           return [...prev, data];
+        });
       }
       setModalClienteFormAberto(false);
       setModalClientesAberto(true);
@@ -1669,88 +1684,6 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* ========== MODAIS GERAIS (ESTRUTURAS MANTIDAS E ADICIONADOS OS DE GARÇONS E BUSCA EM CLIENTES) ========== */}
-
-      {/* ========== MODAL GERENCIAR GARÇONS ========== */}
-      {modalGarcomAberto && isGerente && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
-            <div className="p-4 md:p-6 border-b border-zinc-800 flex justify-between items-center shrink-0">
-              <h3 className="text-xl md:text-2xl font-black text-cyan-500 uppercase italic">👤 Garçons Cadastrados</h3>
-              <button onClick={() => setModalGarcomAberto(false)} className="text-zinc-500 hover:text-zinc-300 text-2xl">✕</button>
-            </div>
-            
-            <div className="p-4 md:p-6">
-              <button onClick={() => abrirFormGarcom()} className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-3 rounded-xl text-xs font-black uppercase transition-all mb-6 w-full sm:w-auto shadow-xl">
-                + Novo Garçom
-              </button>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm min-w-[500px]">
-                  <thead className="bg-zinc-950 text-zinc-500 text-[10px] font-black uppercase border-b border-zinc-800">
-                    <tr>
-                      <th className="p-3">Nome</th>
-                      <th className="p-3">Email (Login)</th>
-                      <th className="p-3 text-center">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {garcons.length === 0 ? (
-                      <tr>
-                        <td colSpan={3} className="p-8 text-center text-zinc-500 font-bold uppercase text-sm">Nenhum garçom cadastrado.</td>
-                      </tr>
-                    ) : (
-                      garcons.map((g) => (
-                        <tr key={g.id} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
-                          <td className="p-3 font-bold uppercase">{g.nome}</td>
-                          <td className="p-3 text-zinc-400">{g.email}</td>
-                          <td className="p-3 text-center">
-                            <button onClick={() => excluirGarcom(g.id)} className="text-red-500 hover:text-red-400 text-xs font-black uppercase">🗑️ Excluir Acesso</button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL ADICIONAR NOVO GARÇOM */}
-      {modalGarcomFormAberto && isGerente && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl p-4 md:p-6">
-            <h3 className="text-xl md:text-2xl font-black text-cyan-500 uppercase italic mb-6">👤 Novo Garçom</h3>
-            <form onSubmit={adicionarGarcom} className="space-y-4">
-              <div>
-                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Nome</label>
-                <input type="text" value={formGarcom.nome} onChange={(e) => setFormGarcom({ ...formGarcom, nome: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required />
-              </div>
-              <div>
-                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Email (login)</label>
-                <input type="email" value={formGarcom.email} onChange={(e) => setFormGarcom({ ...formGarcom, email: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required />
-              </div>
-              <div>
-                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Senha</label>
-                <input type="password" value={formGarcom.senha} onChange={(e) => setFormGarcom({ ...formGarcom, senha: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required />
-              </div>
-              <div>
-                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Confirmar Senha</label>
-                <input type="password" value={formGarcom.confirmarSenha} onChange={(e) => setFormGarcom({ ...formGarcom, confirmarSenha: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required />
-              </div>
-              <div className="flex gap-3 mt-6">
-                <button type="button" onClick={() => { setModalGarcomFormAberto(false); setModalGarcomAberto(true); }} className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all">Cancelar</button>
-                <button type="submit" disabled={cadastrandoGarcom} className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                  {cadastrandoGarcom ? "Salvando..." : "Salvar"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* ========== MODAL ANIVERSARIANTES ========== */}
       {modalAniversariantesAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
@@ -1898,6 +1831,39 @@ export default function Dashboard() {
               <div className="flex gap-3 mt-6">
                 <button type="button" onClick={() => { setModalClienteFormAberto(false); setModalClientesAberto(true); setClienteEditando(null); }} className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all">Cancelar</button>
                 <button type="submit" className="flex-1 bg-pink-600 hover:bg-pink-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all">Salvar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL ADICIONAR GARÇOM */}
+      {modalGarcomAberto && isGerente && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl p-4 md:p-6">
+            <h3 className="text-xl md:text-2xl font-black text-cyan-500 uppercase italic mb-6">👤 Adicionar Garçom</h3>
+            <form onSubmit={adicionarGarcom} className="space-y-4">
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Nome</label>
+                <input type="text" value={formGarcom.nome} onChange={(e) => setFormGarcom({ ...formGarcom, nome: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required />
+              </div>
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Email (login)</label>
+                <input type="email" value={formGarcom.email} onChange={(e) => setFormGarcom({ ...formGarcom, email: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required />
+              </div>
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Senha</label>
+                <input type="password" value={formGarcom.senha} onChange={(e) => setFormGarcom({ ...formGarcom, senha: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required />
+              </div>
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Confirmar Senha</label>
+                <input type="password" value={formGarcom.confirmarSenha} onChange={(e) => setFormGarcom({ ...formGarcom, confirmarSenha: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required />
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button type="button" onClick={() => setModalGarcomAberto(false)} className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all">Cancelar</button>
+                <button type="submit" disabled={cadastrandoGarcom} className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                  {cadastrandoGarcom ? "Cadastrando..." : "Salvar"}
+                </button>
               </div>
             </form>
           </div>
