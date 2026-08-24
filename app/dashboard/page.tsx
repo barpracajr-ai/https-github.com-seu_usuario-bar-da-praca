@@ -1506,7 +1506,7 @@ export default function Dashboard() {
     }
 
     const total = Number(mesaSelecionada.total);
-    const mensagem = `Olá, ${mesaSelecionada.cliente || "Cliente"}! 🍻\n\nAqui está o resumo da sua comanda:\n\n${itensTexto}\n\n💰 **Total: R$ ${total.toFixed(2).replace('.', ',')}**\n\nObrigado pela preferência e volte sempre! 👋`;
+    const mensagem = `Olá, ${mesaSelecionada.cliente || "Cliente"}! 🍻\n\nFoi um prazer recebê-lo(a) no **Bar da Praça**! Esperamos que tenha se divertido e aproveitado cada momento.\n\nAqui está o resumo da sua comanda:\n\n${itensTexto}\n\n💰 **Total: R$ ${total.toFixed(2).replace('.', ',')}**\n\nSua presença iluminou o nosso ambiente e já estamos com saudades! Volte sempre para mais alegria e bons momentos. 😊\n\nAté breve! 👋`;
     
     const link = `https://wa.me/55${telefone}?text=${encodeURIComponent(mensagem)}`;
     window.open(link, '_blank');
