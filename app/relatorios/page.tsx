@@ -268,19 +268,6 @@ export default function Relatorios() {
     downloadCSV('clientes', clientes, headers, columnMap, formatadores);
   }
 
-  // ========== FUNÇÃO WHATSAPP BOAS-VINDAS COM PROMPT ==========
-  const enviarWhatsAppBoasVindas = () => {
-    const numero = prompt("Digite o número do cliente para enviar as boas-vindas (apenas números, ex: 11997814149):");
-    if (!numero) {
-      alert("Número não informado, envio cancelado.");
-      return;
-    }
-
-    const mensagem = `E aí! Tudo bem com você? 🍻🥳 \n\nSua presença aqui no Bar da Praça já é motivo pra festa! Ficamos muito felizes em ter você conosco. Pode ficar à vontade, a casa é sua! \n\nQualquer coisa, é só chamar a gente. Um grande abraço! 👋✨`;
-    const link = `https://wa.me/55${numero}?text=${encodeURIComponent(mensagem)}`;
-    window.open(link, '_blank');
-  };
-
   // Dados para o gráfico
   const dadosGrafico = () => {
     const mapa = new Map<string, { data: string; vendas: number; perdas: number }>();
@@ -354,16 +341,6 @@ export default function Relatorios() {
           className="bg-yellow-500/20 text-yellow-500 px-4 py-2 rounded-xl font-black text-xs hover:bg-yellow-500/30 transition-all"
         >
           🔄 Atualizar
-        </button>
-      </div>
-
-      {/* Botão do WhatsApp (Apenas Boas-Vindas agora) */}
-      <div className="flex flex-wrap gap-3 mb-4">
-        <button
-          onClick={enviarWhatsAppBoasVindas}
-          className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-xl font-black text-xs uppercase transition-all shadow-lg flex items-center gap-2"
-        >
-          📱 Enviar Boas-Vindas
         </button>
       </div>
 
