@@ -136,7 +136,7 @@ export default function Dashboard() {
   });
   const [modalClienteFormAberto, setModalClienteFormAberto] = useState(false);
 
-  // Carrega dados iniciais (sem limites)
+  // Carrega dados iniciais
   useEffect(() => {
     const user = localStorage.getItem("usuario");
     if (!user) {
@@ -179,7 +179,6 @@ export default function Dashboard() {
       if (errCozinha) throw new Error("Erro ao buscar pedidos da cozinha: " + errCozinha.message);
       setPedidosCozinha(cozinhaData || []);
 
-      // Fiados: sem limite (todos)
       const { data: fiadosData, error: errFiados } = await supabase
         .from("fiados")
         .select("*")
@@ -187,7 +186,6 @@ export default function Dashboard() {
       if (errFiados) throw new Error("Erro ao buscar fiados: " + errFiados.message);
       setFiados(fiadosData || []);
 
-      // Clientes: sem limite (todos)
       const { data: clientesData, error: errClientes } = await supabase
         .from("clientes")
         .select("*")
@@ -202,7 +200,7 @@ export default function Dashboard() {
     }
   }
 
-  // Realtime (sem limites)
+  // Realtime
   useEffect(() => {
     if (!usuario) return;
 
@@ -286,34 +284,7 @@ export default function Dashboard() {
     };
   }, [usuario]);
 
-  // ========== BUSCA DE CLIENTES COM DEBOUNCE (VIA SUPABASE) ==========
-  useEffect(() => {
-    const delayDebounce = setTimeout(async () => {
-      if (!buscaCliente.trim()) {
-        setClientesFiltrados(clientes);
-        return;
-      }
-
-      try {
-        const { data, error } = await supabase
-          .from("clientes")
-          .select("*")
-          .ilike("nome", `%${buscaCliente.trim()}%`)
-          .order("nome", { ascending: true })
-          .limit(20);
-
-        if (error) throw error;
-        setClientesFiltrados(data || []);
-      } catch (err) {
-        console.error("Erro ao buscar clientes:", err);
-      }
-    }, 300); // debounce
-
-    return () => clearTimeout(delayDebounce);
-  }, [buscaCliente]);
-
   // ========== FUNÇÕES DE NEGÓCIO ==========
-  // (mantidas exatamente como estavam – não houve alteração na lógica)
 
   async function abrirNovaMesa(e: React.FormEvent) {
     e.preventDefault();
@@ -417,7 +388,7 @@ export default function Dashboard() {
     });
   }
 
-  // ========== ENVIAR PEDIDO ==========
+  // ========== ENVIAR PEDIDO COM BAIXA DE ESTOQUE ==========
   async function enviarPedido() {
     if (!mesaSelecionada || pedidoAtual.length === 0) return;
 
@@ -447,7 +418,7 @@ export default function Dashboard() {
     const itensAntigos = mesaSelecionada.itens || [];
     let itensAtualizados = [...itensAntigos];
 
-    pedidoAtual.forEach((itemNovo) => {
+    pedidoAtual.forEach((itemNovo: any) => {
       const index = itensAtualizados.findIndex((i: any) => i.id === itemNovo.id);
       if (index >= 0) {
         itensAtualizados[index].quantidade += itemNovo.quantidade;
@@ -518,7 +489,10 @@ export default function Dashboard() {
       }));
       setPedidoAtual([]);
       setCardapioAberto(false);
+      
+      // Apenas o Bip e o botão piscante, sem abrir a tela automaticamente
       if (usuario?.role === "gerente") tocarSomAlerta();
+
     } catch (err: any) {
       alert("Erro ao enviar pedido: " + err.message);
     }
@@ -553,6 +527,25 @@ export default function Dashboard() {
     setNovoClienteForm({ nome: "", telefone: "", email: "", data_nascimento: "" });
     setClientesFiltrados(clientes);
     setCheckoutAberto(true);
+  }
+
+  // Filtrar clientes pela busca
+  useEffect(() => {
+    if (!buscaCliente.trim()) {
+      setClientesFiltrados(clientes);
+    } else {
+      const filtrados = clientes.filter(c =>
+        c.nome.toLowerCase().includes(buscaCliente.toLowerCase())
+      );
+      setClientesFiltrados(filtrados);
+    }
+  }, [buscaCliente, clientes]);
+
+  function selecionarCliente(id: string, nome: string) {
+    setClienteSelecionadoId(id);
+    setBuscaCliente(nome);
+    setClientesFiltrados(clientes);
+    setMostrarNovoCliente(false);
   }
 
   function adicionarPagamento() {
@@ -728,7 +721,7 @@ export default function Dashboard() {
     }
   }
 
-  // ===== FUNÇÃO FINALIZAR CHECKOUT =====
+  // ===== FUNÇÃO FINALIZAR CHECKOUT COM CLIENTE =====
   async function finalizarCheckout() {
     if (!mesaSelecionada) return;
 
@@ -908,17 +901,17 @@ export default function Dashboard() {
     if (!confirm(`Remover "${item.nome}" (R$ ${item.preco.toFixed(2)}) do fiado?`)) return;
 
     try {
-      const novosDesmembrados = fiadoSelecionado.itensDesmembrados.filter((_, i) => i !== idx);
+      const novosDesmembrados = fiadoSelecionado.itensDesmembrados.filter((_: any, i: number) => i !== idx);
       const itensAgrupados: any[] = [];
       novosDesmembrados.forEach((i: any) => {
-        const existente = itensAgrupados.find((x) => x.id === i.id);
+        const existente = itensAgrupados.find((x: any) => x.id === i.id);
         if (existente) {
           existente.quantidade += 1;
         } else {
           itensAgrupados.push({ ...i, quantidade: 1 });
         }
       });
-      const novoTotal = itensAgrupados.reduce((acc, i) => acc + (i.preco * i.quantidade), 0);
+      const novoTotal = itensAgrupados.reduce((acc: any, i: any) => acc + (i.preco * i.quantidade), 0);
 
       const { error } = await supabase
         .from("fiados")
@@ -1247,7 +1240,7 @@ export default function Dashboard() {
     }
   }
 
-  // ========== FUNÇÃO EXCLUIR PRODUTO ==========
+  // ========== NOVA FUNÇÃO PARA EXCLUIR PRODUTO ==========
   async function excluirProduto(id: string) {
     if (!confirm("Deseja realmente excluir este produto? Todos os dados de receita associados também serão removidos.")) return;
 
@@ -1424,12 +1417,13 @@ export default function Dashboard() {
     }
   }
 
-  // ========== EXCLUIR MESA COM DEVOLUÇÃO AO ESTOQUE ==========
+  // ========== NOVA FUNÇÃO: EXCLUIR MESA COM DEVOLUÇÃO AO ESTOQUE ==========
   async function excluirMesa(mesa: any) {
     if (!confirm("Tem certeza que deseja excluir esta mesa?\nOs itens lançados serão devolvidos ao estoque e não poderão ser recuperados.")) return;
 
     try {
       const itensMesa = mesa.itens || [];
+      // 1. Devolver os itens ao estoque
       for (const item of itensMesa) {
         const produto = produtos.find((p) => p.id === item.id);
         if (!produto || !produto.receita || produto.receita.length === 0) continue;
@@ -1455,6 +1449,7 @@ export default function Dashboard() {
         }
       }
 
+      // 2. Apagar a mesa do banco de dados
       const { error: errDelete } = await supabase
         .from("mesas")
         .delete()
@@ -1462,6 +1457,7 @@ export default function Dashboard() {
 
       if (errDelete) throw errDelete;
 
+      // 3. Atualizar o estado local
       setMesas((prev) => prev.filter((m) => m.id !== mesa.id));
       if (mesaSelecionada?.id === mesa.id) {
         setFichaAberta(false);
@@ -1474,10 +1470,11 @@ export default function Dashboard() {
     }
   }
 
-  // ========== ENVIAR COMANDA POR WHATSAPP (CHECKOUT) ==========
+  // ========== FUNÇÃO ENVIAR COMANDA POR WHATSAPP (CHECKOUT) ==========
   const enviarWhatsAppComanda = () => {
     if (!mesaSelecionada) return;
 
+    // 1. Tenta pegar o telefone do cliente vinculado
     let telefone = "";
     if (clienteSelecionadoId) {
       const clienteEncontrado = clientes.find(c => c.id === clienteSelecionadoId);
@@ -1486,6 +1483,7 @@ export default function Dashboard() {
       }
     }
 
+    // 2. Se não tiver telefone, pede para digitar
     if (!telefone) {
       const resp = prompt("Cliente sem telefone cadastrado. Digite o número do cliente para enviar a comanda (apenas números, ex: 11997814149):");
       if (!resp) {
@@ -1495,6 +1493,7 @@ export default function Dashboard() {
       telefone = resp;
     }
 
+    // 3. Montar os itens
     const itensMesa = mesaSelecionada.itens || [];
     let itensTexto = "";
     if (itensMesa.length > 0) {
@@ -1506,7 +1505,9 @@ export default function Dashboard() {
     }
 
     const total = Number(mesaSelecionada.total);
-    const mensagem = `Olá, ${mesaSelecionada.cliente || "Cliente"}! 🍻\n\nFoi um prazer recebê-lo(a) no **Bar da Praça**! Esperamos que tenha se divertido e aproveitado cada momento.\n\nAqui está o resumo da sua comanda:\n\n${itensTexto}\n\n💰 **Total: R$ ${total.toFixed(2).replace('.', ',')}**\n\nSua presença iluminou o nosso ambiente e já estamos com saudades! Volte sempre para mais alegria e bons momentos. 😊\n\nAté breve! 👋`;
+
+    // REMOVIDAS AS FORMAS DE PAGAMENTO
+    const mensagem = `Olá, ${mesaSelecionada.cliente || "Cliente"}! 🍻\n\nAqui está o resumo da sua comanda:\n\n${itensTexto}\n\n💰 **Total: R$ ${total.toFixed(2).replace('.', ',')}**\n\nObrigado pela preferência e volte sempre! 👋`;
     
     const link = `https://wa.me/55${telefone}?text=${encodeURIComponent(mensagem)}`;
     window.open(link, '_blank');
@@ -1537,106 +1538,105 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50">
-      {/* CABEÇALHO RESPONSIVO */}
-      <header className="border-b border-zinc-800 bg-zinc-900/50 px-3 py-2 flex flex-wrap items-center justify-between gap-1 backdrop-blur-md sticky top-0 z-10">
-        <div className="flex items-center gap-2">
-          <div className="h-9 w-9 relative rounded-full overflow-hidden border border-yellow-500/30 bg-black flex items-center justify-center">
+      {/* CABEÇALHO */}
+      <header className="border-b border-zinc-800 bg-zinc-900/50 px-6 py-4 flex justify-between items-center backdrop-blur-md sticky top-0 z-10">
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 relative rounded-full overflow-hidden border border-yellow-500/30 bg-black flex items-center justify-center">
             <Image src="/logo.png" alt="Logo" fill className="object-contain p-1" />
           </div>
           <div>
-            <h1 className="text-sm font-bold text-yellow-500 italic uppercase leading-tight">Bar da Praça</h1>
-            <p className="text-[8px] text-zinc-400 leading-tight">Bem-vindo, {usuario.nome}</p>
+            <h1 className="text-xl font-bold text-yellow-500 italic uppercase">Bar da Praça</h1>
+            <p className="text-xs text-zinc-400">Bem-vindo, {usuario.nome}</p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-1">
+        <div className="flex items-center gap-4">
           {isGerente && (
             <>
               <button
                 onClick={() => router.push("/relatorios")}
-                className="bg-purple-600 hover:bg-purple-500 text-white px-1.5 py-1 rounded-lg text-[8px] font-black uppercase transition-all shadow-xl"
+                className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl"
               >
-                📊 Rel
+                📊 Relatórios
               </button>
               <button
                 onClick={() => router.push("/caixa")}
-                className="bg-yellow-600 hover:bg-yellow-500 text-white px-1.5 py-1 rounded-lg text-[8px] font-black uppercase transition-all shadow-xl"
+                className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl"
               >
                 💰 Caixa
               </button>
               <button
                 onClick={abrirClientes}
-                className="bg-pink-600 hover:bg-pink-500 text-white px-1.5 py-1 rounded-lg text-[8px] font-black uppercase transition-all shadow-xl"
+                className="bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl"
               >
-                👤 Cli
+                👤 Clientes ({clientes.length})
               </button>
               <button
                 onClick={() => setModalGarcomAberto(true)}
-                className="bg-cyan-600 hover:bg-cyan-500 text-white px-1.5 py-1 rounded-lg text-[8px] font-black uppercase transition-all shadow-xl"
+                className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl"
               >
-                👤 Gar
+                👤 Garçons
               </button>
               <button
                 onClick={abrirFiados}
-                className="bg-orange-600 hover:bg-orange-500 text-white px-1.5 py-1 rounded-lg text-[8px] font-black uppercase transition-all shadow-xl"
+                className="bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl"
               >
-                📒 Fia
+                📒 Fiados ({fiados.length})
               </button>
               <button
                 onClick={abrirEstoque}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white px-1.5 py-1 rounded-lg text-[8px] font-black uppercase transition-all shadow-xl"
+                className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-xl"
               >
-                📦 Est
+                📦 Estoque
               </button>
               <button
                 onClick={() => setCozinhaAberta(true)}
-                className={`relative px-1.5 py-1 rounded-lg flex items-center gap-0.5 font-bold text-[8px] transition-all shadow-xl ${
+                className={`relative px-4 py-2 rounded-xl flex items-center gap-2 font-bold text-xs transition-all shadow-xl ${
                   pedidosCozinha.length > 0
                     ? "bg-red-600 text-white animate-pulse shadow-[0_0_15px_rgba(220,38,38,0.6)]"
                     : "bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-yellow-500"
                 }`}
               >
-                <span>🍳</span>
+                <span>🍳 Cozinha</span>
                 {pedidosCozinha.length > 0 && (
-                  <span className="bg-white text-red-600 rounded-full px-1 py-0.5 text-[6px] font-black">
+                  <span className="bg-white text-red-600 rounded-full px-2 py-0.5 text-[10px] font-black">
                     {pedidosCozinha.length}
                   </span>
                 )}
               </button>
             </>
           )}
-          <span className="text-[8px] font-bold text-zinc-500 uppercase">{usuario.role}</span>
+          <span className="text-xs font-bold text-zinc-500 uppercase">{usuario.role}</span>
           <button
             onClick={() => {
               localStorage.removeItem("usuario");
               router.push("/");
             }}
-            className="text-[8px] text-red-500 hover:text-red-400 font-bold uppercase transition-colors"
+            className="text-xs text-red-500 hover:text-red-400 font-bold uppercase transition-colors"
           >
             Sair
           </button>
         </div>
       </header>
 
-      {/* SALÃO */}
-      <main className="p-3 max-w-7xl mx-auto">
-        <div className="flex flex-wrap justify-between items-center mb-3 gap-1">
-          <h2 className="text-lg font-black uppercase italic">Salão</h2>
+      {/* SALÃO – visível para todos */}
+      <main className="p-6 max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-black uppercase italic">Salão</h2>
           <button
             onClick={() => {
               setNumeroMesa("");
               setClienteMesa("");
               setModalAberto(true);
             }}
-            className="bg-yellow-500 text-zinc-950 px-3 py-1.5 rounded-xl font-black text-xs hover:bg-yellow-400 transition-all shadow-xl"
+            className="bg-yellow-500 text-zinc-950 px-6 py-3 rounded-2xl font-black text-sm hover:bg-yellow-400 transition-all shadow-xl"
           >
             + Nova Mesa
           </button>
         </div>
 
-        {/* GRID RESPONSIVO */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {mesas.length === 0 ? (
-            <p className="text-zinc-500 col-span-full text-center py-6 font-bold uppercase text-xs">
+            <p className="text-zinc-500 col-span-full text-center py-12 font-bold uppercase text-sm">
               Nenhuma mesa ocupada no momento.
             </p>
           ) : (
@@ -1645,15 +1645,16 @@ export default function Dashboard() {
               return (
                 <div
                   key={mesa.id}
-                  className="relative p-3 rounded-2xl border border-yellow-500/50 bg-yellow-500/10 h-32 flex flex-col justify-between cursor-pointer transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-yellow-500/5"
+                  className="relative p-6 rounded-2xl border border-yellow-500/50 bg-yellow-500/10 h-48 flex flex-col justify-between cursor-pointer transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-yellow-500/5"
                   onClick={() => abrirFicha(mesa)}
                 >
+                  {/* Top Row */}
                   <div className="flex justify-between items-start w-full">
-                    <span className="text-2xl font-black italic text-yellow-500">
+                    <span className="text-4xl font-black italic text-yellow-500">
                       {String(mesa.numero).padStart(2, "0")}
                     </span>
-                    <div className="flex items-start gap-1">
-                      <span className="bg-yellow-500 text-zinc-950 text-[7px] font-black px-1.5 py-0.5 rounded-md uppercase truncate max-w-[60px]">
+                    <div className="flex items-start gap-2">
+                      <span className="bg-yellow-500 text-zinc-950 text-[10px] font-black px-2 py-1 rounded-md uppercase">
                         {mesa.cliente}
                       </span>
                       <button
@@ -1661,15 +1662,17 @@ export default function Dashboard() {
                           e.stopPropagation();
                           excluirMesa(mesa);
                         }}
-                        className="text-red-500 hover:text-red-400 p-0.5 bg-zinc-900 rounded-full transition-colors text-xs"
+                        className="text-red-500 hover:text-red-400 p-1 bg-zinc-900 rounded-full transition-colors"
                         title="Excluir mesa"
                       >
                         🗑️
                       </button>
                     </div>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-xs font-black uppercase tracking-widest text-yellow-500">
+                  
+                  {/* Bottom Section */}
+                  <div className="space-y-2">
+                    <p className="text-sm font-black uppercase tracking-widest text-yellow-500">
                       R$ {Number(mesa.total).toFixed(2)}
                     </p>
                     <button
@@ -1678,13 +1681,13 @@ export default function Dashboard() {
                         setMesaSelecionada(mesa);
                         setCozinhaAberta(true);
                       }}
-                      className={`w-full text-white py-0.5 rounded-lg text-[7px] font-black uppercase transition-all shadow-lg ${
+                      className={`w-full text-white py-1.5 rounded-lg text-[10px] font-black uppercase transition-all shadow-lg ${
                         temPedidoCozinha
                           ? "bg-red-600 animate-pulse shadow-[0_0_15px_rgba(220,38,38,0.6)]"
                           : "bg-yellow-600 hover:bg-yellow-500"
                       }`}
                     >
-                      {temPedidoCozinha ? "⏳ Pendente" : "🟡 Ver Cozinha"}
+                      {temPedidoCozinha ? "⏳ Pedido Pendente" : "🟡 Ver Cozinha"}
                     </button>
                   </div>
                 </div>
@@ -1694,12 +1697,1230 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* ========== MODAIS ========== */}
-      {/* Os modais permanecem idênticos aos que você já tinha – 
-          não vou repetir todo o código aqui para não alongar, mas mantenha 
-          todos os modais que estavam no arquivo anterior (clientes, garçom, fiados, receber fiado, estoque, produto, cardápio, cozinha, nova mesa, ficha, checkout, comanda térmica) 
-          exatamente como estavam, porque não houve alteração neles. */}
-      
+      {/* ========== MODAL GERENCIAR CLIENTES ========== */}
+      {modalClientesAberto && isGerente && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="p-6 border-b border-zinc-800 flex justify-between items-center">
+              <h3 className="text-2xl font-black text-pink-500 uppercase italic">👤 Clientes Cadastrados</h3>
+              <button
+                onClick={() => setModalClientesAberto(false)}
+                className="text-zinc-500 hover:text-zinc-300 text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6">
+              <button
+                onClick={() => abrirFormCliente()}
+                className="bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all mb-4"
+              >
+                + Novo Cliente
+              </button>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-zinc-950 text-zinc-500 text-[10px] font-black uppercase border-b border-zinc-800">
+                    <tr>
+                      <th className="p-3">Nome</th>
+                      <th className="p-3">Telefone</th>
+                      <th className="p-3">Email</th>
+                      <th className="p-3">Nascimento</th>
+                      <th className="p-3 text-center">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {clientes.map((c) => (
+                      <tr key={c.id} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
+                        <td className="p-3 font-bold uppercase">{c.nome}</td>
+                        <td className="p-3 text-zinc-400">{c.telefone || "-"}</td>
+                        <td className="p-3 text-zinc-400">{c.email || "-"}</td>
+                        <td className="p-3 text-zinc-400">{c.data_nascimento ? new Date(c.data_nascimento).toLocaleDateString() : "-"}</td>
+                        <td className="p-3 text-center space-x-2">
+                          <button
+                            onClick={() => abrirFormCliente(c)}
+                            className="text-blue-400 hover:text-blue-300 text-xs font-black uppercase"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => excluirCliente(c.id)}
+                            className="text-red-500 hover:text-red-400 text-xs font-black uppercase"
+                          >
+                            Excluir
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {clientes.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="p-8 text-center text-zinc-500 font-bold uppercase text-sm">
+                          Nenhum cliente cadastrado.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========== MODAL FORMULÁRIO CLIENTE ========== */}
+      {modalClienteFormAberto && isGerente && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl p-6">
+            <h3 className="text-2xl font-black text-pink-500 uppercase italic mb-6">
+              {clienteEditando ? "Editar Cliente" : "Novo Cliente"}
+            </h3>
+            <form onSubmit={salvarCliente} className="space-y-4">
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Nome *</label>
+                <input
+                  type="text"
+                  value={formCliente.nome}
+                  onChange={(e) => setFormCliente({ ...formCliente, nome: e.target.value })}
+                  className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-pink-500 outline-none"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Telefone</label>
+                <input
+                  type="text"
+                  value={formCliente.telefone}
+                  onChange={(e) => setFormCliente({ ...formCliente, telefone: e.target.value })}
+                  className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-pink-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Email</label>
+                <input
+                  type="email"
+                  value={formCliente.email}
+                  onChange={(e) => setFormCliente({ ...formCliente, email: e.target.value })}
+                  className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-pink-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Data de Nascimento</label>
+                <input
+                  type="date"
+                  value={formCliente.data_nascimento}
+                  onChange={(e) => setFormCliente({ ...formCliente, data_nascimento: e.target.value })}
+                  className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-pink-500 outline-none"
+                />
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalClienteFormAberto(false);
+                    setModalClientesAberto(true);
+                    setClienteEditando(null);
+                  }}
+                  className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-pink-600 hover:bg-pink-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all"
+                >
+                  Salvar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========== MODAL ADICIONAR GARÇOM ========== */}
+      {modalGarcomAberto && isGerente && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl p-6">
+            <h3 className="text-2xl font-black text-cyan-500 uppercase italic mb-6">👤 Adicionar Garçom</h3>
+            <form onSubmit={adicionarGarcom} className="space-y-4">
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Nome</label>
+                <input
+                  type="text"
+                  value={formGarcom.nome}
+                  onChange={(e) => setFormGarcom({ ...formGarcom, nome: e.target.value })}
+                  className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Email (login)</label>
+                <input
+                  type="email"
+                  value={formGarcom.email}
+                  onChange={(e) => setFormGarcom({ ...formGarcom, email: e.target.value })}
+                  className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Senha</label>
+                <input
+                  type="password"
+                  value={formGarcom.senha}
+                  onChange={(e) => setFormGarcom({ ...formGarcom, senha: e.target.value })}
+                  className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Confirmar Senha</label>
+                <input
+                  type="password"
+                  value={formGarcom.confirmarSenha}
+                  onChange={(e) => setFormGarcom({ ...formGarcom, confirmarSenha: e.target.value })}
+                  className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none"
+                  required
+                />
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setModalGarcomAberto(false)}
+                  className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={cadastrandoGarcom}
+                  className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {cadastrandoGarcom ? "Cadastrando..." : "Salvar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========== MODAL LISTA DE FIADOS ========== */}
+      {isGerente && fiadosAberto && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+            <div className="p-6 border-b border-zinc-800 flex justify-between items-center">
+              <h3 className="text-2xl font-black text-orange-500 uppercase italic">📒 Fiados Pendentes</h3>
+              <button
+                onClick={() => setFiadosAberto(false)}
+                className="text-zinc-500 hover:text-zinc-300 text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[70vh] space-y-4">
+              {fiados.length === 0 ? (
+                <p className="text-zinc-500 text-center py-8 font-bold uppercase text-sm">Nenhum fiado pendente.</p>
+              ) : (
+                fiados.map((fiado) => (
+                  <div key={fiado.id} className="bg-zinc-950 border border-orange-500/30 rounded-2xl overflow-hidden shadow-lg shadow-orange-500/5">
+                    <div className="bg-orange-500/10 p-4 border-b border-orange-500/20 flex justify-between items-center">
+                      <div>
+                        <span className="text-orange-500 font-black uppercase text-sm">{fiado.cliente_nome}</span>
+                        <p className="text-xs text-zinc-400">{new Date(fiado.data_criacao).toLocaleDateString()}</p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="text-orange-500 font-black text-lg">R$ {Number(fiado.total).toFixed(2)}</span>
+                        <button
+                          onClick={() => selecionarFiado(fiado)}
+                          className="bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all"
+                        >
+                          Receber
+                        </button>
+                      </div>
+                    </div>
+                    <div className="p-4 space-y-1">
+                      {fiado.itens && Array.isArray(fiado.itens) && fiado.itens.slice(0, 3).map((item: any, idx: number) => (
+                        <div key={idx} className="flex justify-between text-xs text-zinc-400">
+                          <span>{item.quantidade}x {item.nome}</span>
+                          <span>R$ {(item.preco * item.quantidade).toFixed(2)}</span>
+                        </div>
+                      ))}
+                      {fiado.itens && fiado.itens.length > 3 && (
+                        <p className="text-[10px] text-zinc-500 italic">+ {fiado.itens.length - 3} outros itens</p>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========== MODAL RECEBER FIADO ========== */}
+      {isGerente && fiadoModalAberto && fiadoSelecionado && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-black text-orange-500 uppercase italic">Receber Fiado - {fiadoSelecionado.cliente_nome}</h3>
+              <button
+                onClick={() => setFiadoModalAberto(false)}
+                className="text-zinc-500 hover:text-zinc-300 text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 mb-6">
+              <p className="text-zinc-400 text-sm">Total pendente: <span className="font-bold text-orange-500 text-xl">R$ {Number(fiadoSelecionado.total).toFixed(2)}</span></p>
+            </div>
+            <div className="mb-4">
+              <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block mb-2">Valor a pagar (R$)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={valorPagamentoFiado || ""}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value) || 0;
+                  setValorPagamentoFiado(val);
+                  if (pagamentosFiado.length > 0) {
+                    const novos = pagamentosFiado.map((p, i) => i === 0 ? { ...p, valor: val } : p);
+                    setPagamentosFiado(novos);
+                  }
+                }}
+                placeholder="0,00"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-200 font-bold text-right outline-none focus:border-orange-500"
+              />
+            </div>
+            <div className="space-y-4 mb-6">
+              <div className="flex justify-between items-center">
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Itens (selecione para referência)</label>
+                <button
+                  onClick={selecionarTodosFiado}
+                  className="text-orange-400 hover:text-orange-300 text-xs font-black uppercase"
+                >
+                  {itensSelecionadosFiado.length === fiadoSelecionado.itensDesmembrados?.length ? "Desmarcar todos" : "Marcar todos"}
+                </button>
+              </div>
+              <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 max-h-60 overflow-y-auto space-y-2">
+                {fiadoSelecionado.itensDesmembrados?.map((item: any, idx: number) => {
+                  const isSelected = itensSelecionadosFiado.includes(idx);
+                  return (
+                    <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-zinc-900/30 hover:bg-zinc-800 transition-all">
+                      <div
+                        onClick={() => alternarItemFiado(idx)}
+                        className={`w-5 h-5 rounded border flex items-center justify-center cursor-pointer ${isSelected ? "bg-orange-500 border-orange-500" : "border-zinc-700"}`}
+                      >
+                        {isSelected && <span className="text-white text-xs">✓</span>}
+                      </div>
+                      <span className="text-sm font-bold text-zinc-200 flex-1">{item.nome}</span>
+                      <span className="text-orange-500 font-black text-sm">R$ {item.preco.toFixed(2)}</span>
+                      <button
+                        onClick={() => excluirItemFiado(idx)}
+                        className="text-red-500 hover:text-red-400 text-xs font-black px-2"
+                        title="Excluir item do fiado"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="space-y-4 mb-6">
+              <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block">Formas de Pagamento</label>
+              {pagamentosFiado.map((pag) => (
+                <div key={pag.id} className="flex items-center gap-3 bg-zinc-950 p-3 rounded-xl border border-zinc-800">
+                  <select
+                    value={pag.metodo}
+                    onChange={(e) => atualizarMetodoPagamentoFiado(pag.id, e.target.value)}
+                    className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-xs w-32 outline-none focus:border-orange-500"
+                  >
+                    <option value="dinheiro">Dinheiro</option>
+                    <option value="pix">PIX</option>
+                    <option value="debito">Cartão Débito</option>
+                    <option value="credito">Cartão Crédito</option>
+                  </select>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={pag.valor || ""}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      atualizarValorPagamentoFiado(pag.id, val);
+                    }}
+                    placeholder="0,00"
+                    className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold w-28 text-right outline-none focus:border-orange-500"
+                  />
+                  {pagamentosFiado.length > 1 && (
+                    <button
+                      onClick={() => removerPagamentoFiado(pag.id)}
+                      className="text-red-500 hover:text-red-400 text-sm font-black"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                onClick={adicionarPagamentoFiado}
+                className="text-orange-500 hover:text-orange-400 text-xs font-black uppercase transition-colors"
+              >
+                + Adicionar outra forma
+              </button>
+            </div>
+            <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 space-y-2 mb-6">
+              <div className="flex justify-between">
+                <span className="text-zinc-400 text-sm">Total Pendente:</span>
+                <span className="font-bold text-orange-500">R$ {Number(fiadoSelecionado.total).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-400 text-sm">Total Pago:</span>
+                <span className="font-bold text-green-500">R$ {pagamentosFiado.reduce((acc, p) => acc + (p.valor || 0), 0).toFixed(2)}</span>
+              </div>
+              {pagamentosFiado.reduce((acc, p) => acc + (p.valor || 0), 0) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-zinc-400 text-sm">Saldo Restante:</span>
+                  <span className="font-bold text-blue-400">R$ {(Number(fiadoSelecionado.total) - pagamentosFiado.reduce((acc, p) => acc + (p.valor || 0), 0)).toFixed(2)}</span>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={receberFiado}
+              className="w-full bg-green-600 hover:bg-green-500 text-white font-black py-4 rounded-xl text-lg uppercase italic transition-all shadow-xl"
+            >
+              Confirmar Recebimento
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ========== MODAL ESTOQUE ========== */}
+      {isGerente && estoqueAberto && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="p-6 border-b border-zinc-800 flex justify-between items-center">
+              <h3 className="text-2xl font-black text-emerald-500 uppercase italic">📦 Gerenciar Estoque</h3>
+              <button
+                onClick={() => setEstoqueAberto(false)}
+                className="text-zinc-500 hover:text-zinc-300 text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6">
+              <button
+                onClick={() => abrirFormInsumo()}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all mb-4"
+              >
+                + Adicionar Insumo
+              </button>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-zinc-950 text-zinc-500 text-[10px] font-black uppercase border-b border-zinc-800">
+                    <tr>
+                      <th className="p-3">Nome</th>
+                      <th className="p-3">Unidade</th>
+                      <th className="p-3 text-right">Estoque</th>
+                      <th className="p-3 text-right">Custo Unit.</th>
+                      <th className="p-3 text-center">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {insumos.map((i) => (
+                      <tr key={i.id} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
+                        <td className="p-3 font-bold uppercase">{i.nome}</td>
+                        <td className="p-3 text-zinc-400">{i.unidade}</td>
+                        <td className="p-3 text-right text-yellow-500 font-black">{i.estoque}</td>
+                        <td className="p-3 text-right text-zinc-400">R$ {Number(i.custo_unidade).toFixed(2)}</td>
+                        <td className="p-3 text-center space-x-2">
+                          <button
+                            onClick={() => abrirFormInsumo(i)}
+                            className="text-blue-400 hover:text-blue-300 text-xs font-black uppercase"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => excluirInsumo(i.id)}
+                            className="text-red-500 hover:text-red-400 text-xs font-black uppercase"
+                          >
+                            Excluir
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {insumos.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="p-8 text-center text-zinc-500 font-bold uppercase text-sm">
+                          Nenhum insumo cadastrado.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========== MODAL FORMULÁRIO INSUMO ========== */}
+      {isGerente && modalInsumoAberto && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl p-6">
+            <h3 className="text-2xl font-black text-emerald-500 uppercase italic mb-6">
+              {insumoEditando ? "Editar Insumo" : "Novo Insumo"}
+            </h3>
+            <form onSubmit={(e) => { e.preventDefault(); salvarInsumo(); }} className="space-y-4">
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Nome</label>
+                <input
+                  type="text"
+                  value={formInsumo.nome}
+                  onChange={(e) => setFormInsumo({ ...formInsumo, nome: e.target.value })}
+                  className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-emerald-500 outline-none"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Unidade</label>
+                <select
+                  value={formInsumo.unidade}
+                  onChange={(e) => setFormInsumo({ ...formInsumo, unidade: e.target.value })}
+                  className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-emerald-500 outline-none"
+                >
+                  <option value="UN">Unidade (UN)</option>
+                  <option value="KG">Quilograma (KG)</option>
+                  <option value="G">Grama (G)</option>
+                  <option value="L">Litro (L)</option>
+                  <option value="ML">Mililitro (ML)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Estoque Atual</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formInsumo.estoque}
+                  onChange={(e) => setFormInsumo({ ...formInsumo, estoque: e.target.value })}
+                  className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-emerald-500 outline-none"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Custo por Unidade (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formInsumo.custo_unidade}
+                  onChange={(e) => setFormInsumo({ ...formInsumo, custo_unidade: e.target.value })}
+                  className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-emerald-500 outline-none"
+                  required
+                />
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setModalInsumoAberto(false)}
+                  className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all"
+                >
+                  Salvar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========== MODAL PRODUTO ========== */}
+      {isGerente && modalProdutoAberto && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6">
+            <h3 className="text-2xl font-black text-yellow-500 uppercase italic mb-6">
+              {produtoEditando ? "Editar Produto" : "Novo Produto"}
+            </h3>
+            <form onSubmit={(e) => { e.preventDefault(); salvarProduto(); }} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Nome</label>
+                  <input
+                    type="text"
+                    value={formProduto.nome}
+                    onChange={(e) => setFormProduto({ ...formProduto, nome: e.target.value })}
+                    className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-yellow-500 outline-none"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Categoria</label>
+                  <select
+                    value={formProduto.categoria}
+                    onChange={(e) => setFormProduto({ ...formProduto, categoria: e.target.value })}
+                    className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-yellow-500 outline-none"
+                  >
+                    {categorias.filter(c => c !== "Todas").map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Preço (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formProduto.preco}
+                    onChange={(e) => setFormProduto({ ...formProduto, preco: e.target.value })}
+                    className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-yellow-500 outline-none"
+                    required
+                  />
+                </div>
+                <div className="flex items-end">
+                  <span className="text-xs text-zinc-500 font-bold">Custo estimado: R$ {receitaTemp.reduce((acc, i) => acc + (i.qtd * (insumos.find(inss => inss.id === i.insumo_id)?.custo_unidade || 0)), 0).toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="border-t border-zinc-800 pt-4 mt-4">
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block mb-2">Composição (Receita)</label>
+                <div className="flex gap-2 mb-3">
+                  <select
+                    value={ingredienteTemp.insumo_id}
+                    onChange={(e) => setIngredienteTemp({ ...ingredienteTemp, insumo_id: e.target.value })}
+                    className="flex-1 bg-zinc-950 border border-zinc-800 h-10 rounded-xl px-3 text-zinc-50 font-bold text-sm focus:border-yellow-500 outline-none"
+                  >
+                    <option value="">Selecione o insumo...</option>
+                    {insumos.map(i => (
+                      <option key={i.id} value={i.id}>{i.nome} ({i.unidade})</option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="Qtd"
+                    value={ingredienteTemp.qtd}
+                    onChange={(e) => setIngredienteTemp({ ...ingredienteTemp, qtd: e.target.value })}
+                    className="w-24 bg-zinc-950 border border-zinc-800 h-10 rounded-xl px-3 text-zinc-50 font-bold text-sm text-center focus:border-yellow-500 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={adicionarIngrediente}
+                    className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 h-10 rounded-xl font-black text-xs uppercase transition-all"
+                  >
+                    Adicionar
+                  </button>
+                </div>
+                {receitaTemp.length > 0 ? (
+                  <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 max-h-40 overflow-y-auto space-y-1">
+                    {receitaTemp.map((ing, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-sm">
+                        <span className="font-bold text-zinc-300">{ing.nome}</span>
+                        <span className="text-zinc-400">{ing.qtd} {ing.unidade}</span>
+                        <button
+                          type="button"
+                          onClick={() => removerIngrediente(idx)}
+                          className="text-red-500 hover:text-red-400 text-xs font-black"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-zinc-500 text-xs italic">Nenhum insumo adicionado à receita.</p>
+                )}
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setModalProdutoAberto(false)}
+                  className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-yellow-600 hover:bg-yellow-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all"
+                >
+                  Salvar Produto
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========== CARDÁPIO ========== */}
+      {cardapioAberto && (
+        <div className="fixed inset-0 bg-black/60 z-40 flex justify-start">
+          <div className="bg-zinc-950 w-full max-w-md h-full overflow-y-auto border-r border-zinc-800 p-6 animate-in slide-in-from-left duration-300">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-black text-yellow-500 uppercase italic">Cardápio</h2>
+              <div className="flex gap-2">
+                {isGerente && (
+                  <button
+                    onClick={abrirNovoProduto}
+                    className="bg-yellow-600 hover:bg-yellow-500 text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all"
+                  >
+                    + Novo
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setCardapioAberto(false);
+                    setPedidoAtual([]);
+                  }}
+                  className="text-zinc-500 hover:text-zinc-300 text-2xl"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div className="relative mb-4">
+              <input
+                type="text"
+                value={buscaProduto}
+                onChange={(e) => setBuscaProduto(e.target.value)}
+                placeholder="Buscar produto..."
+                className="w-full bg-zinc-900 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-yellow-500 outline-none"
+              />
+            </div>
+            <div className="flex gap-2 overflow-x-auto mb-6 pb-2">
+              {categorias.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setCategoriaAtiva(cat)}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black border transition-all uppercase whitespace-nowrap ${
+                    categoriaAtiva === cat
+                      ? "bg-yellow-500 text-zinc-950 border-yellow-500 shadow-lg"
+                      : "bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-3">
+              {produtosFiltrados.length === 0 ? (
+                <p className="text-zinc-500 text-center py-8 font-bold text-sm">Nenhum produto encontrado.</p>
+              ) : (
+                produtosFiltrados.map((prod) => {
+                  const qtd = pedidoAtual.find((i) => i.id === prod.id)?.quantidade || 0;
+                  return (
+                    <div
+                      key={prod.id}
+                      className={`p-4 rounded-xl border transition-all flex justify-between items-center ${
+                        qtd > 0
+                          ? "border-yellow-500/40 bg-yellow-500/5"
+                          : "border-zinc-800 bg-zinc-900/30"
+                      }`}
+                    >
+                      {/* Lado Esquerdo (Nome, Preço, Editar + Excluir) */}
+                      <div>
+                        <p className="font-black uppercase tracking-tighter text-zinc-100">{prod.nome}</p>
+                        <p className="text-yellow-500 font-black text-sm italic">R$ {prod.preco.toFixed(2)}</p>
+                        
+                        {/* Botões de Ação (Gerente) */}
+                        {isGerente && (
+                          <div className="flex items-center gap-2 mt-1">
+                            <button 
+                              onClick={() => abrirEdicaoProduto(prod)} 
+                              className="text-blue-400 hover:text-blue-300 text-[10px] font-black uppercase"
+                            >
+                              Editar
+                            </button>
+                            <span className="text-zinc-600 text-[10px]">|</span>
+                            <button 
+                              onClick={() => excluirProduto(prod.id)} 
+                              className="text-red-500 hover:text-red-400 text-[10px] font-black uppercase flex items-center gap-1"
+                            >
+                              🗑️ Excluir
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Lado Direito (Controles de Quantidade) */}
+                      <div className="flex items-center gap-3 bg-zinc-950 p-1.5 rounded-xl border border-zinc-800">
+                        <button
+                          onClick={() => removerItem(prod.id)}
+                          className="h-7 w-7 rounded-lg bg-zinc-900 text-red-500 flex items-center justify-center hover:bg-red-500/10"
+                        >
+                          -
+                        </button>
+                        <span className="font-black text-lg italic w-6 text-center">{qtd}</span>
+                        <button
+                          onClick={() => adicionarItem(prod)}
+                          className="h-7 w-7 rounded-lg bg-yellow-500 text-zinc-950 flex items-center justify-center hover:bg-yellow-400"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="mt-6">
+              <button
+                onClick={enviarPedido}
+                disabled={pedidoAtual.length === 0}
+                className={`w-full font-black py-5 rounded-xl uppercase italic tracking-tighter text-lg transition-all ${
+                  pedidoAtual.length > 0
+                    ? "bg-yellow-500 text-zinc-950 hover:bg-yellow-400 shadow-xl"
+                    : "bg-zinc-800 text-zinc-500 cursor-not-allowed"
+                }`}
+              >
+                Enviar Pedido - R${" "}
+                {pedidoAtual
+                  .reduce((acc, i) => acc + i.preco * i.quantidade, 0)
+                  .toFixed(2)}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========== MODAL COZINHA ========== */}
+      {isGerente && cozinhaAberta && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[80vh] overflow-hidden shadow-2xl">
+            <div className="p-6 border-b border-zinc-800 flex justify-between items-center">
+              <h3 className="text-2xl font-black text-yellow-500 uppercase italic">🍳 Pedidos da Cozinha</h3>
+              <button
+                onClick={() => setCozinhaAberta(false)}
+                className="text-zinc-500 hover:text-zinc-300 text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[60vh] space-y-4">
+              {pedidosCozinha.length === 0 ? (
+                <p className="text-zinc-500 text-center py-8 font-bold uppercase text-sm">Nenhum pedido pendente.</p>
+              ) : (
+                pedidosCozinha.map((pedido) => (
+                  <div key={pedido.id} className="bg-zinc-950 border border-red-500/30 rounded-2xl overflow-hidden shadow-lg shadow-red-500/5">
+                    <div className="bg-red-500/10 p-4 border-b border-red-500/20 flex justify-between items-center">
+                      <div>
+                        <span className="bg-red-500 text-white font-black uppercase text-[10px] px-3 py-1 rounded-md">Mesa {pedido.mesa}</span>
+                        <p className="text-xs font-bold text-zinc-300 uppercase ml-2 inline">{pedido.cliente}</p>
+                      </div>
+                      <span className="text-xs font-black text-red-400">⏱ {pedido.hora}</span>
+                    </div>
+                    <div className="p-4 space-y-2">
+                      {pedido.itens.map((item: any, idx: number) => (
+                        <div key={idx} className="flex justify-between items-center bg-zinc-950 p-3 rounded-xl border border-zinc-800">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xl font-black text-yellow-500 italic">x{item.quantidade}</span>
+                            <span className="font-bold text-sm uppercase text-zinc-200">{item.nome}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="p-4 border-t border-zinc-800 bg-zinc-950/50">
+                      <button
+                        onClick={() => finalizarPedidoCozinha(pedido.id)}
+                        className="w-full bg-green-600 hover:bg-green-500 text-white font-black py-4 rounded-xl text-sm uppercase italic transition-all flex justify-center items-center gap-2"
+                      >
+                        ✅ Finalizar e Entregar
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========== MODAL NOVA MESA ========== */}
+      {modalAberto && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-40 p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 max-w-md w-full shadow-2xl">
+            <h3 className="text-2xl font-black text-yellow-500 uppercase italic text-center mb-6">Nova Mesa</h3>
+            <form onSubmit={abrirNovaMesa} className="space-y-4">
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Número da Mesa</label>
+                <input
+                  type="number"
+                  value={numeroMesa}
+                  onChange={(e) => setNumeroMesa(e.target.value)}
+                  placeholder="Ex: 5"
+                  disabled={mesaOcupada}
+                  className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-yellow-500 outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Nome do Cliente</label>
+                <input
+                  type="text"
+                  value={clienteMesa}
+                  onChange={(e) => setClienteMesa(e.target.value)}
+                  placeholder="Ex: João"
+                  className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-yellow-500 outline-none"
+                  required
+                />
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setModalAberto(false)}
+                  className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-yellow-500 text-zinc-950 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-yellow-400 transition-all"
+                >
+                  Abrir Mesa
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========== FICHA DA MESA ========== */}
+      {fichaAberta && mesaSelecionada && (
+        <div className="fixed inset-0 bg-black/60 z-30 flex justify-end">
+          <div className="bg-zinc-950 w-full max-w-md h-full overflow-y-auto border-l border-zinc-800 p-6 animate-in slide-in-from-right duration-300">
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h2 className="text-3xl font-black text-yellow-500 italic uppercase">Mesa {mesaSelecionada.numero}</h2>
+                <p className="text-zinc-400 text-sm font-bold">{mesaSelecionada.cliente}</p>
+              </div>
+              <button
+                onClick={() => setFichaAberta(false)}
+                className="text-zinc-500 hover:text-zinc-300 text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 mb-6">
+              {mesaSelecionada.itens && mesaSelecionada.itens.length > 0 ? (
+                mesaSelecionada.itens.map((item: any, idx: number) => (
+                  <div key={idx} className="flex justify-between items-center bg-zinc-900/50 p-3 rounded-xl border border-zinc-800/50">
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg font-black text-yellow-500 italic">x{item.quantidade}</span>
+                      <span className="font-bold text-sm uppercase text-zinc-200">{item.nome}</span>
+                    </div>
+                    <span className="text-zinc-400 font-bold text-xs">R$ {(item.preco * item.quantidade).toFixed(2)}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-zinc-600 italic text-sm font-bold text-center py-6">Nenhum pedido ainda.</p>
+              )}
+            </div>
+
+            <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800 mb-6">
+              <div className="flex justify-between items-center">
+                <span className="text-zinc-400 font-bold uppercase text-xs">Total</span>
+                <span className="text-2xl font-black text-yellow-500 italic">R$ {Number(mesaSelecionada.total).toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  setCardapioAberto(true);
+                  setFichaAberta(false);
+                }}
+                className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-black py-4 rounded-xl uppercase tracking-widest text-xs transition-all"
+              >
+                + Adicionar Item
+              </button>
+              <button
+                onClick={() => imprimirComandaCozinha(mesaSelecionada)}
+                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl uppercase tracking-widest text-xs transition-all"
+              >
+                📄 Comanda Cozinha
+              </button>
+              <button
+                onClick={() => {
+                  setFichaAberta(false);
+                  abrirCheckout(mesaSelecionada);
+                }}
+                className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-xl uppercase tracking-widest text-xs transition-all"
+              >
+                Fechar Conta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========== CHECKOUT MODAL ========== */}
+      {checkoutAberto && mesaSelecionada && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-black text-yellow-500 uppercase italic">Fechar Conta - Mesa {mesaSelecionada.numero}</h3>
+              <button
+                onClick={() => setCheckoutAberto(false)}
+                className="text-zinc-500 hover:text-zinc-300 text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 mb-6">
+              <p className="text-zinc-400 text-sm">Cliente: <span className="font-bold text-zinc-200">{mesaSelecionada.cliente}</span></p>
+              <p className="text-zinc-400 text-sm">Total da conta: <span className="font-bold text-yellow-500 text-xl">R$ {Number(mesaSelecionada.total).toFixed(2)}</span></p>
+            </div>
+
+            {/* Seção de cliente com busca */}
+            <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 mb-4">
+              <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block mb-2">Vincular Cliente (opcional)</label>
+              <div className="relative flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    placeholder="Digite o nome do cliente..."
+                    value={buscaCliente}
+                    onChange={(e) => {
+                      setBuscaCliente(e.target.value);
+                      setClienteSelecionadoId("");
+                    }}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-sm outline-none focus:border-yellow-500"
+                  />
+                  {buscaCliente && clientesFiltrados.length > 0 && !clienteSelecionadoId && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-zinc-800 border border-zinc-700 rounded-xl max-h-40 overflow-y-auto z-10">
+                      {clientesFiltrados.map((c) => (
+                        <div
+                          key={c.id}
+                          onClick={() => selecionarCliente(c.id, c.nome)}
+                          className="px-3 py-2 hover:bg-zinc-700 cursor-pointer text-zinc-200 font-bold text-sm border-b border-zinc-700 last:border-none"
+                        >
+                          {c.nome}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    setMostrarNovoCliente(!mostrarNovoCliente);
+                    if (!mostrarNovoCliente) {
+                      setClienteSelecionadoId("");
+                      setBuscaCliente("");
+                    }
+                  }}
+                  className="bg-pink-600 hover:bg-pink-500 text-white px-3 py-2 rounded-lg text-xs font-black uppercase transition-all shrink-0"
+                >
+                  + Novo
+                </button>
+              </div>
+              {clienteSelecionadoId && (
+                <p className="text-green-500 text-xs mt-2 font-bold">✓ Cliente selecionado</p>
+              )}
+              {mostrarNovoCliente && (
+                <div className="mt-3 p-3 bg-zinc-900 rounded-xl border border-pink-500/30 space-y-2 animate-in fade-in">
+                  <input
+                    type="text"
+                    placeholder="Nome *"
+                    value={novoClienteForm.nome}
+                    onChange={(e) => setNovoClienteForm({ ...novoClienteForm, nome: e.target.value })}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-sm outline-none focus:border-pink-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Telefone"
+                    value={novoClienteForm.telefone}
+                    onChange={(e) => setNovoClienteForm({ ...novoClienteForm, telefone: e.target.value })}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-sm outline-none focus:border-pink-500"
+                  />
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={novoClienteForm.email}
+                    onChange={(e) => setNovoClienteForm({ ...novoClienteForm, email: e.target.value })}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-sm outline-none focus:border-pink-500"
+                  />
+                  <input
+                    type="date"
+                    value={novoClienteForm.data_nascimento}
+                    onChange={(e) => setNovoClienteForm({ ...novoClienteForm, data_nascimento: e.target.value })}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-sm outline-none focus:border-pink-500"
+                  />
+                  <button
+                    onClick={criarClienteRapido}
+                    className="w-full bg-pink-600 hover:bg-pink-500 text-white font-black py-2 rounded-lg text-sm uppercase transition-all"
+                  >
+                    Cadastrar e vincular
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 mb-4">
+              <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block mb-2">Dividir conta igualmente entre pessoas</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={numeroPessoas}
+                  onChange={(e) => setNumeroPessoas(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold w-20 text-center outline-none focus:border-yellow-500"
+                />
+                <span className="text-zinc-400 text-sm">pessoas</span>
+                <button
+                  onClick={dividirIgualmente}
+                  className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-500 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all"
+                >
+                  Dividir agora
+                </button>
+              </div>
+              {dividirIgual && (
+                <p className="text-green-500 text-xs mt-2 font-bold">✓ Valores divididos igualmente entre {numeroPessoas} pessoas</p>
+              )}
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block">Formas de Pagamento (valores em R$)</label>
+              {pagamentos.map((pag) => (
+                <div key={pag.id} className="flex items-center gap-3 bg-zinc-950 p-3 rounded-xl border border-zinc-800">
+                  <select
+                    value={pag.metodo}
+                    onChange={(e) => atualizarMetodoPagamento(pag.id, e.target.value)}
+                    className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-xs w-32 outline-none focus:border-yellow-500"
+                  >
+                    <option value="dinheiro">Dinheiro</option>
+                    <option value="pix">PIX</option>
+                    <option value="debito">Cartão Débito</option>
+                    <option value="credito">Cartão Crédito</option>
+                  </select>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={pag.valor || ""}
+                    onChange={(e) => atualizarValorPagamento(pag.id, parseFloat(e.target.value) || 0)}
+                    placeholder="0,00"
+                    className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold w-28 text-right outline-none focus:border-yellow-500"
+                  />
+                  {pagamentos.length > 1 && (
+                    <button
+                      onClick={() => removerPagamento(pag.id)}
+                      className="text-red-500 hover:text-red-400 text-sm font-black"
+                    >
+                      ✕
+                    </button>
+                  )}
+                  <button
+                    onClick={() => pagarParcela(pag.id)}
+                    className="bg-green-600 hover:bg-green-500 text-white px-3 py-2 rounded-lg text-xs font-black uppercase transition-all"
+                  >
+                    Pagar agora
+                  </button>
+                </div>
+              ))}
+              <button
+                onClick={adicionarPagamento}
+                className="text-yellow-500 hover:text-yellow-400 text-xs font-black uppercase transition-colors"
+              >
+                + Adicionar outra forma
+              </button>
+            </div>
+
+            <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 space-y-2 mb-6">
+              <div className="flex justify-between">
+                <span className="text-zinc-400 text-sm">Total Pago:</span>
+                <span className="font-bold text-green-500">R$ {totalPago.toFixed(2)}</span>
+              </div>
+              {saldoRestante > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-zinc-400 text-sm">Saldo Restante:</span>
+                  <span className="font-bold text-orange-500">R$ {saldoRestante.toFixed(2)}</span>
+                </div>
+              )}
+              {troco > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-zinc-400 text-sm">Troco:</span>
+                  <span className="font-bold text-blue-400">R$ {troco.toFixed(2)}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3 mb-6">
+              <div className="flex items-center gap-3 bg-orange-950/10 border border-orange-500/30 p-3 rounded-xl">
+                <input
+                  type="checkbox"
+                  id="fiadoAuto"
+                  checked={fiadoAutomatico}
+                  onChange={(e) => setFiadoAutomatico(e.target.checked)}
+                  className="accent-orange-500 w-4 h-4"
+                />
+                <label htmlFor="fiadoAuto" className="text-orange-400 text-sm font-bold">
+                  {saldoRestante > 0 ? "Lançar saldo restante como fiado" : "Lançar todo o valor como fiado"}
+                </label>
+                {fiadoAutomatico && (
+                  <input
+                    type="text"
+                    value={clienteNomeFiado}
+                    onChange={(e) => setClienteNomeFiado(e.target.value)}
+                    placeholder="Nome do cliente (fiado)"
+                    className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1 text-zinc-200 text-sm w-40 outline-none focus:border-orange-500"
+                  />
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 bg-blue-950/10 border border-blue-500/30 p-3 rounded-xl">
+                <input
+                  type="checkbox"
+                  id="manterMesaAberta"
+                  checked={manterMesaAberta}
+                  onChange={(e) => setManterMesaAberta(e.target.checked)}
+                  className="accent-blue-500 w-4 h-4"
+                />
+                <label htmlFor="manterMesaAberta" className="text-blue-400 text-sm font-bold">
+                  {saldoRestante > 0 ? "Manter mesa aberta (pagamento parcial)" : "Manter mesa aberta (pagamento integral)"}
+                </label>
+              </div>
+            </div>
+
+            {/* ========== BOTÕES DE AÇÃO DO FECHAMENTO ========== */}
+            <div className="flex flex-col md:flex-row gap-3">
+              <button
+                onClick={enviarWhatsAppComanda}
+                className="flex-1 bg-green-500 hover:bg-green-400 text-white font-black py-4 rounded-xl text-sm uppercase italic transition-all shadow-xl flex items-center justify-center gap-2"
+              >
+                📱 Enviar Comanda WhatsApp
+              </button>
+              <button
+                onClick={() => {
+                  const pagamentosAtuais = pagamentos.filter(p => p.valor > 0);
+                  if (pagamentosAtuais.length === 0) {
+                    alert("Não há pagamentos registrados para imprimir.");
+                    return;
+                  }
+                  imprimirComandaCliente(mesaSelecionada, pagamentosAtuais);
+                }}
+                className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl text-sm uppercase italic transition-all"
+              >
+                🖨️ Imprimir comprovante
+              </button>
+              <button
+                onClick={finalizarCheckout}
+                className="flex-1 bg-green-600 hover:bg-green-500 text-white font-black py-4 rounded-xl text-lg uppercase italic transition-all shadow-xl"
+              >
+                Finalizar Conta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ========== MODAL COMANDA TÉRMICA (UNIFICADO) ========== */}
       {comandaAberta && dadosComanda && (
         <ComandaTermica
