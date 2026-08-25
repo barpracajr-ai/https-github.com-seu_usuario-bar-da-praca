@@ -41,6 +41,9 @@ export default function Dashboard() {
   const [clientes, setClientes] = useState<any[]>([]);
   const [garcons, setGarcons] = useState<any[]>([]);
   const [carregando, setCarregando] = useState(true);
+  
+  // Trava global anti-clique duplo
+  const [processando, setProcessando] = useState(false);
 
   // Estados dos modais principais
   const [modalAberto, setModalAberto] = useState(false);
@@ -67,7 +70,7 @@ export default function Dashboard() {
   const [numeroPessoas, setNumeroPessoas] = useState(1);
   const [dividirIgual, setDividirIgual] = useState(false);
 
-  // Estados para clientes (checkout e modal geral)
+  // Estados para clientes
   const [clienteSelecionadoId, setClienteSelecionadoId] = useState<string>("");
   const [buscaCliente, setBuscaCliente] = useState("");
   const [buscaClienteModal, setBuscaClienteModal] = useState(""); 
@@ -90,7 +93,7 @@ export default function Dashboard() {
   const [fiadoModalAberto, setFiadoModalAberto] = useState(false);
   const [valorPagamentoFiado, setValorPagamentoFiado] = useState(0);
 
-  // Estados para impressão (comanda térmica)
+  // Estados para impressão
   const [comandaAberta, setComandaAberta] = useState(false);
   const [dadosComanda, setDadosComanda] = useState<any>(null);
 
@@ -125,7 +128,6 @@ export default function Dashboard() {
     senha: "",
     confirmarSenha: "",
   });
-  const [cadastrandoGarcom, setCadastrandoGarcom] = useState(false);
 
   // Estados para gerenciamento de clientes
   const [modalClientesAberto, setModalClientesAberto] = useState(false);
@@ -142,7 +144,6 @@ export default function Dashboard() {
   const [modalAniversariantesAberto, setModalAniversariantesAberto] = useState(false);
   const [mesAniversario, setMesAniversario] = useState(new Date().getMonth() + 1);
 
-  // Carrega dados iniciais
   useEffect(() => {
     const user = localStorage.getItem("usuario");
     if (!user) {
@@ -160,42 +161,42 @@ export default function Dashboard() {
         .select("*")
         .eq("status", "ocupada")
         .order("numero", { ascending: true });
-      if (errMesas) throw new Error("Erro ao buscar mesas: " + errMesas.message);
+      if (errMesas) throw new Error(errMesas.message);
       setMesas(mesasData || []);
 
       const { data: produtosData, error: errProdutos } = await supabase
         .from("produtos")
         .select("*")
         .order("nome");
-      if (errProdutos) throw new Error("Erro ao buscar produtos: " + errProdutos.message);
+      if (errProdutos) throw new Error(errProdutos.message);
       setProdutos(produtosData || []);
 
       const { data: insumosData, error: errInsumos } = await supabase
         .from("insumos")
         .select("*")
         .order("nome");
-      if (errInsumos) throw new Error("Erro ao buscar insumos: " + errInsumos.message);
+      if (errInsumos) throw new Error(errInsumos.message);
       setInsumos(insumosData || []);
 
       const { data: cozinhaData, error: errCozinha } = await supabase
         .from("pedidos_cozinha")
         .select("*")
         .order("created_at", { ascending: true });
-      if (errCozinha) throw new Error("Erro ao buscar pedidos da cozinha: " + errCozinha.message);
+      if (errCozinha) throw new Error(errCozinha.message);
       setPedidosCozinha(cozinhaData || []);
 
       const { data: fiadosData, error: errFiados } = await supabase
         .from("fiados")
         .select("*")
         .order("data_criacao", { ascending: false });
-      if (errFiados) throw new Error("Erro ao buscar fiados: " + errFiados.message);
+      if (errFiados) throw new Error(errFiados.message);
       setFiados(fiadosData || []);
 
       const { data: clientesData, error: errClientes } = await supabase
         .from("clientes")
         .select("*")
         .order("nome", { ascending: true });
-      if (errClientes) throw new Error("Erro ao buscar clientes: " + errClientes.message);
+      if (errClientes) throw new Error(errClientes.message);
       setClientes(clientesData || []);
       setClientesFiltrados(clientesData || []);
 
@@ -204,7 +205,7 @@ export default function Dashboard() {
         .select("*")
         .eq("role", "colaborador")
         .order("nome", { ascending: true });
-      if (errGarcons) throw new Error("Erro ao buscar garçons: " + errGarcons.message);
+      if (errGarcons) throw new Error(errGarcons.message);
       setGarcons(garconsData || []);
 
     } catch (err: any) {
@@ -214,16 +215,12 @@ export default function Dashboard() {
     }
   }
 
-  // Realtime Blindado com Desduplicação (Map IDs)
   useEffect(() => {
     if (!usuario) return;
 
     const canal = supabase
       .channel("bar-praca-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "mesas" },
-        (payload) => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "mesas" }, (payload) => {
           setMesas((prev) => {
             const map = new Map(prev.map(m => [String(m.id), m]));
             if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
@@ -237,12 +234,8 @@ export default function Dashboard() {
             }
             return Array.from(map.values()).sort((a, b) => a.numero - b.numero);
           });
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "pedidos_cozinha" },
-        (payload) => {
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "pedidos_cozinha" }, (payload) => {
           setPedidosCozinha((prev) => {
             const map = new Map(prev.map(p => [String(p.id), p]));
             if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
@@ -255,12 +248,8 @@ export default function Dashboard() {
             }
             return Array.from(map.values());
           });
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "fiados" },
-        (payload) => {
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "fiados" }, (payload) => {
           setFiados((prev) => {
             const map = new Map(prev.map(f => [String(f.id), f]));
             if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
@@ -270,12 +259,8 @@ export default function Dashboard() {
             }
             return Array.from(map.values()).sort((a, b) => new Date(b.data_criacao).getTime() - new Date(a.data_criacao).getTime());
           });
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "insumos" },
-        (payload) => {
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "insumos" }, (payload) => {
           setInsumos((prev) => {
             const map = new Map(prev.map(i => [String(i.id), i]));
             if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
@@ -285,12 +270,8 @@ export default function Dashboard() {
             }
             return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
           });
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "clientes" },
-        (payload) => {
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "clientes" }, (payload) => {
           setClientes((prev) => {
             const map = new Map(prev.map(c => [String(c.id), c]));
             if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
@@ -302,8 +283,7 @@ export default function Dashboard() {
             setClientesFiltrados(novos);
             return novos;
           });
-        }
-      )
+      })
       .subscribe();
 
     return () => {
@@ -315,17 +295,18 @@ export default function Dashboard() {
 
   async function abrirNovaMesa(e: React.FormEvent) {
     e.preventDefault();
+    if (processando) return;
     if (!numeroMesa || !clienteMesa) {
       alert("Preencha todos os campos.");
       return;
     }
-
     const num = parseInt(numeroMesa);
     if (isNaN(num) || num <= 0) {
       alert("Número de mesa inválido.");
       return;
     }
 
+    setProcessando(true);
     try {
       const { data: mesaExistente, error: errBusca } = await supabase
         .from("mesas")
@@ -378,6 +359,8 @@ export default function Dashboard() {
       }
     } catch (err: any) {
       alert("Erro ao abrir mesa: " + err.message);
+    } finally {
+      setProcessando(false);
     }
   }
 
@@ -416,9 +399,9 @@ export default function Dashboard() {
     });
   }
 
-  // ========== ENVIAR PEDIDO COM BAIXA DE ESTOQUE ==========
   async function enviarPedido() {
     if (!mesaSelecionada || pedidoAtual.length === 0) return;
+    if (processando) return;
 
     let faltaEstoque = false;
     for (const item of pedidoAtual) {
@@ -431,7 +414,7 @@ export default function Dashboard() {
         const qtdNecessaria = parseFloat(ing.qtd) * item.quantidade;
         if (insumo.estoque < qtdNecessaria) {
           faltaEstoque = true;
-          alert(`⚠️ Estoque insuficiente para "${produto.nome}".\nInsumo: ${insumo.nome} (disponível: ${insumo.estoque}, necessário: ${qtdNecessaria})\nO pedido será enviado mesmo assim, mas o estoque ficará negativo.`);
+          alert(`⚠️ Estoque insuficiente para "${produto.nome}".\nInsumo: ${insumo.nome} (disponível: ${insumo.estoque}, necessário: ${qtdNecessaria})\nO pedido será enviado mesmo assim.`);
         }
       }
     }
@@ -441,29 +424,30 @@ export default function Dashboard() {
       if (!continuar) return;
     }
 
-    const totalRemessa = pedidoAtual.reduce((acc, i) => acc + i.preco * i.quantidade, 0);
-    const totalNovo = Number(mesaSelecionada.total) + totalRemessa;
-    const itensAntigos = mesaSelecionada.itens || [];
-    let itensAtualizados = [...itensAntigos];
-
-    pedidoAtual.forEach((itemNovo: any) => {
-      const index = itensAtualizados.findIndex((i: any) => i.id === itemNovo.id);
-      if (index >= 0) {
-        itensAtualizados[index].quantidade += itemNovo.quantidade;
-      } else {
-        itensAtualizados.push({ ...itemNovo });
-      }
-    });
-
-    const pedidoCozinha = {
-      id: Date.now().toString(),
-      mesa: mesaSelecionada.numero.toString(),
-      cliente: mesaSelecionada.cliente,
-      itens: pedidoAtual,
-      hora: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-    };
-
+    setProcessando(true);
     try {
+      const totalRemessa = pedidoAtual.reduce((acc, i) => acc + i.preco * i.quantidade, 0);
+      const totalNovo = Number(mesaSelecionada.total) + totalRemessa;
+      const itensAntigos = mesaSelecionada.itens || [];
+      let itensAtualizados = [...itensAntigos];
+
+      pedidoAtual.forEach((itemNovo: any) => {
+        const index = itensAtualizados.findIndex((i: any) => i.id === itemNovo.id);
+        if (index >= 0) {
+          itensAtualizados[index].quantidade += itemNovo.quantidade;
+        } else {
+          itensAtualizados.push({ ...itemNovo });
+        }
+      });
+
+      const pedidoCozinha = {
+        id: Date.now().toString(),
+        mesa: mesaSelecionada.numero.toString(),
+        cliente: mesaSelecionada.cliente,
+        itens: pedidoAtual,
+        hora: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+      };
+
       const { error: errMesa } = await supabase
         .from("mesas")
         .update({ total: totalNovo, itens: itensAtualizados })
@@ -529,23 +513,26 @@ export default function Dashboard() {
       setCardapioAberto(false);
       
       if (usuario?.role === "gerente") tocarSomAlerta();
-
     } catch (err: any) {
       alert("Erro ao enviar pedido: " + err.message);
+    } finally {
+      setProcessando(false);
     }
   }
 
   async function finalizarPedidoCozinha(id: string) {
+    if (processando) return;
+    setProcessando(true);
     try {
       const { error } = await supabase.from("pedidos_cozinha").delete().eq("id", id);
       if (error) throw error;
       setPedidosCozinha((prev) => prev.filter((p) => String(p.id) !== String(id)));
     } catch (err: any) {
       alert("Erro ao finalizar pedido: " + err.message);
+    } finally {
+      setProcessando(false);
     }
   }
-
-  // ========== FUNÇÕES DO CHECKOUT ==========
 
   function abrirCheckout(mesa: any) {
     setMesaSelecionada(mesa);
@@ -653,6 +640,7 @@ export default function Dashboard() {
 
   async function pagarParcela(id: number) {
     if (!mesaSelecionada) return;
+    if (processando) return;
 
     const pagamento = pagamentos.find(p => p.id === id);
     if (!pagamento) return;
@@ -668,6 +656,7 @@ export default function Dashboard() {
       return;
     }
 
+    setProcessando(true);
     try {
       const itensVenda = mesaSelecionada.itens || [];
       const custoEstimado = valorPago * 0.4;
@@ -721,16 +710,19 @@ export default function Dashboard() {
       }
     } catch (err: any) {
       alert("Erro ao registrar pagamento parcial: " + err.message);
+    } finally {
+      setProcessando(false);
     }
   }
 
-  // ===== FUNÇÃO PARA CRIAR NOVO CLIENTE RÁPIDO NO CHECKOUT =====
   async function criarClienteRapido() {
+    if (processando) return;
     const { nome, telefone, email, data_nascimento } = novoClienteForm;
     if (!nome.trim()) {
       alert("Informe o nome do cliente.");
       return;
     }
+    setProcessando(true);
     try {
       const { data, error } = await supabase
         .from("clientes")
@@ -759,22 +751,26 @@ export default function Dashboard() {
       alert("Cliente cadastrado e vinculado à conta!");
     } catch (err: any) {
       alert("Erro ao criar cliente: " + err.message);
+    } finally {
+      setProcessando(false);
     }
   }
 
-  // ===== FUNÇÃO FINALIZAR CHECKOUT =====
   async function finalizarCheckout() {
     if (!mesaSelecionada) return;
+    if (processando) return;
 
     const totalMesa = Number(mesaSelecionada.total);
     const somaPago = totalPago;
 
     if (totalMesa === 0) {
+      setProcessando(true);
       await supabase.from("mesas").delete().eq("id", mesaSelecionada.id);
       setMesas(prev => prev.filter(m => String(m.id) !== String(mesaSelecionada.id)));
       setMesaSelecionada(null);
       setFichaAberta(false);
       setCheckoutAberto(false);
+      setProcessando(false);
       alert("Mesa vazia removida com sucesso!");
       return;
     }
@@ -795,6 +791,7 @@ export default function Dashboard() {
       valorFiado = totalMesa;
     }
 
+    setProcessando(true);
     try {
       const itensVenda = mesaSelecionada.itens || [];
 
@@ -880,10 +877,10 @@ export default function Dashboard() {
       
     } catch (err: any) {
       alert("Erro ao finalizar conta: " + err.message);
+    } finally {
+      setProcessando(false);
     }
   }
-
-  // ========== FUNÇÕES DO GERENCIADOR DE FIADOS ==========
 
   function abrirFiados() {
     setFiadosAberto(true);
@@ -927,7 +924,9 @@ export default function Dashboard() {
     if (!item) return;
 
     if (!confirm(`Remover "${item.nome}" (R$ ${item.preco.toFixed(2)}) do fiado?`)) return;
+    if (processando) return;
 
+    setProcessando(true);
     try {
       const novosDesmembrados = fiadoSelecionado.itensDesmembrados.filter((_: any, i: number) => i !== idx);
       const itensAgrupados: any[] = [];
@@ -965,6 +964,8 @@ export default function Dashboard() {
       alert("Item removido do fiado.");
     } catch (err: any) {
       alert("Erro ao excluir item: " + err.message);
+    } finally {
+      setProcessando(false);
     }
   }
 
@@ -997,6 +998,7 @@ export default function Dashboard() {
 
   async function receberFiado() {
     if (!fiadoSelecionado) return;
+    if (processando) return;
 
     const totalPendente = Number(fiadoSelecionado.total);
     const somaPago = pagamentosFiado.reduce((acc, p) => acc + (p.valor || 0), 0);
@@ -1011,6 +1013,7 @@ export default function Dashboard() {
       return;
     }
 
+    setProcessando(true);
     try {
       const custoEstimado = somaPago * 0.4;
       const lucroEstimado = somaPago * 0.6;
@@ -1056,10 +1059,10 @@ export default function Dashboard() {
       alert(`Pagamento de R$ ${somaPago.toFixed(2)} recebido com sucesso!`);
     } catch (err: any) {
       alert("Erro ao receber fiado: " + err.message);
+    } finally {
+      setProcessando(false);
     }
   }
-
-  // ========== FUNÇÕES DE IMPRESSÃO ==========
 
   function imprimirComandaCozinha(mesa: any) {
     if (!mesa || !mesa.itens || mesa.itens.length === 0) {
@@ -1088,8 +1091,6 @@ export default function Dashboard() {
     });
     setComandaAberta(true);
   }
-
-  // ========== FUNÇÕES DE GERENCIAMENTO DE ESTOQUE ==========
 
   function abrirEstoque() {
     if (usuario?.role !== "gerente") {
@@ -1120,15 +1121,17 @@ export default function Dashboard() {
   }
 
   async function salvarInsumo() {
-    try {
-      const { nome, unidade, estoque, custo_unidade } = formInsumo;
-      if (!nome || !unidade) {
-        alert("Nome e unidade são obrigatórios.");
-        return;
-      }
-      const estoqueNum = parseFloat(estoque) || 0;
-      const custoNum = parseFloat(custo_unidade) || 0;
+    if (processando) return;
+    const { nome, unidade, estoque, custo_unidade } = formInsumo;
+    if (!nome || !unidade) {
+      alert("Nome e unidade são obrigatórios.");
+      return;
+    }
+    const estoqueNum = parseFloat(estoque) || 0;
+    const custoNum = parseFloat(custo_unidade) || 0;
 
+    setProcessando(true);
+    try {
       if (insumoEditando) {
         const { error } = await supabase
           .from("insumos")
@@ -1160,21 +1163,25 @@ export default function Dashboard() {
       alert("Insumo salvo com sucesso!");
     } catch (err: any) {
       alert("Erro ao salvar insumo: " + err.message);
+    } finally {
+      setProcessando(false);
     }
   }
 
   async function excluirInsumo(id: string) {
     if (!confirm("Deseja realmente excluir este insumo?")) return;
+    if (processando) return;
+    setProcessando(true);
     try {
       const { error } = await supabase.from("insumos").delete().eq("id", id);
       if (error) throw error;
       setInsumos(prev => prev.filter(i => String(i.id) !== String(id)));
     } catch (err: any) {
       alert("Erro ao excluir insumo: " + err.message);
+    } finally {
+      setProcessando(false);
     }
   }
-
-  // ========== FUNÇÕES DE GERENCIAMENTO DE PRODUTOS ==========
 
   function abrirNovoProduto() {
     if (usuario?.role !== "gerente") {
@@ -1245,20 +1252,22 @@ export default function Dashboard() {
   }
 
   async function salvarProduto() {
-    try {
-      const { nome, categoria, preco } = formProduto;
-      if (!nome || !preco) {
-        alert("Preencha nome e preço.");
-        return;
-      }
-      const precoNum = parseFloat(preco) || 0;
-      const dados = {
-        nome,
-        categoria,
-        preco: precoNum,
-        receita: receitaTemp,
-      };
+    if (processando) return;
+    const { nome, categoria, preco } = formProduto;
+    if (!nome || !preco) {
+      alert("Preencha nome e preço.");
+      return;
+    }
+    const precoNum = parseFloat(preco) || 0;
+    const dados = {
+      nome,
+      categoria,
+      preco: precoNum,
+      receita: receitaTemp,
+    };
 
+    setProcessando(true);
+    try {
       if (produtoEditando) {
         const { error } = await supabase
           .from("produtos")
@@ -1288,26 +1297,30 @@ export default function Dashboard() {
       alert("Produto salvo com sucesso!");
     } catch (err: any) {
       alert("Erro ao salvar produto: " + err.message);
+    } finally {
+      setProcessando(false);
     }
   }
 
   async function excluirProduto(id: string) {
     if (!confirm("Deseja realmente excluir este produto? Todos os dados de receita associados também serão removidos.")) return;
-
+    if (processando) return;
+    setProcessando(true);
     try {
       const { error } = await supabase.from("produtos").delete().eq("id", id);
       if (error) throw error;
-      
       setProdutos((prev) => prev.filter((p) => String(p.id) !== String(id)));
       alert("Produto excluído com sucesso!");
     } catch (err: any) {
       alert("Erro ao excluir produto: " + err.message);
+    } finally {
+      setProcessando(false);
     }
   }
 
-  // ========== FUNÇÃO ADICIONAR GARÇOM ==========
   async function adicionarGarcom(e: React.FormEvent) {
     e.preventDefault();
+    if (processando) return;
     const { nome, email, senha, confirmarSenha } = formGarcom;
     if (!nome || !email || !senha || !confirmarSenha) {
       alert("Preencha todos os campos.");
@@ -1322,8 +1335,7 @@ export default function Dashboard() {
       return;
     }
 
-    setCadastrandoGarcom(true);
-
+    setProcessando(true);
     try {
       const { data: usuarioExistente } = await supabase
         .from("usuarios")
@@ -1333,7 +1345,7 @@ export default function Dashboard() {
 
       if (usuarioExistente) {
         alert("Este email já está cadastrado no sistema.");
-        setCadastrandoGarcom(false);
+        setProcessando(false);
         return;
       }
 
@@ -1348,7 +1360,7 @@ export default function Dashboard() {
         } else {
           alert("Erro ao criar usuário na base Auth: " + authError.message);
         }
-        setCadastrandoGarcom(false);
+        setProcessando(false);
         return;
       }
 
@@ -1364,7 +1376,7 @@ export default function Dashboard() {
 
       if (perfilError) {
         alert("Erro ao criar perfil de usuário: " + perfilError.message);
-        setCadastrandoGarcom(false);
+        setProcessando(false);
         return;
       }
 
@@ -1379,12 +1391,14 @@ export default function Dashboard() {
     } catch (err: any) {
       alert("Erro inesperado: " + err.message);
     } finally {
-      setCadastrandoGarcom(false);
+      setProcessando(false);
     }
   }
 
   async function excluirGarcom(id: string) {
     if (!confirm("Deseja realmente excluir este garçom? O acesso dele será revogado da tela do sistema.")) return;
+    if (processando) return;
+    setProcessando(true);
     try {
       const { error } = await supabase.from("usuarios").delete().eq("id", id);
       if (error) throw error;
@@ -1392,10 +1406,10 @@ export default function Dashboard() {
       alert("Garçom removido com sucesso!");
     } catch (err: any) {
       alert("Erro ao excluir garçom: " + err.message);
+    } finally {
+      setProcessando(false);
     }
   }
-
-  // ========== FUNÇÕES DE GERENCIAMENTO DE CLIENTES ==========
 
   function abrirClientes() {
     if (usuario?.role !== "gerente") {
@@ -1425,12 +1439,14 @@ export default function Dashboard() {
 
   async function salvarCliente(e: React.FormEvent) {
     e.preventDefault();
+    if (processando) return;
     const { nome, telefone, email, data_nascimento } = formCliente;
     if (!nome.trim()) {
       alert("Nome é obrigatório.");
       return;
     }
 
+    setProcessando(true);
     try {
       if (clienteEditando) {
         const { error } = await supabase
@@ -1479,11 +1495,15 @@ export default function Dashboard() {
       alert("Cliente salvo com sucesso!");
     } catch (err: any) {
       alert("Erro ao salvar cliente: " + err.message);
+    } finally {
+      setProcessando(false);
     }
   }
 
   async function excluirCliente(id: string) {
     if (!confirm("Deseja realmente excluir este cliente?")) return;
+    if (processando) return;
+    setProcessando(true);
     try {
       const { error } = await supabase.from("clientes").delete().eq("id", id);
       if (error) throw error;
@@ -1494,13 +1514,15 @@ export default function Dashboard() {
       });
     } catch (err: any) {
       alert("Erro ao excluir cliente: " + err.message);
+    } finally {
+      setProcessando(false);
     }
   }
 
-  // ========== EXCLUIR MESA COM DEVOLUÇÃO AO ESTOQUE ==========
   async function excluirMesa(mesa: any) {
     if (!confirm("Tem certeza que deseja excluir esta mesa?\nOs itens lançados serão devolvidos ao estoque e não poderão ser recuperados.")) return;
-
+    if (processando) return;
+    setProcessando(true);
     try {
       const itensMesa = mesa.itens || [];
       for (const item of itensMesa) {
@@ -1545,10 +1567,11 @@ export default function Dashboard() {
       alert("Mesa excluída e itens devolvidos ao estoque com sucesso!");
     } catch (err: any) {
       alert("Erro ao excluir a mesa: " + err.message);
+    } finally {
+      setProcessando(false);
     }
   }
 
-  // ========== FUNÇÃO ENVIAR COMANDA POR WHATSAPP ==========
   const enviarWhatsAppComanda = () => {
     if (!mesaSelecionada) return;
 
@@ -1588,7 +1611,6 @@ export default function Dashboard() {
     window.open(link, '_blank');
   };
 
-  // ========== FILTRO DE ANIVERSARIANTES ==========
   const aniversariantesFiltrados = clientes.filter(c => {
     if (!c.data_nascimento) return false;
     const [, month] = c.data_nascimento.split('-');
@@ -1604,15 +1626,12 @@ export default function Dashboard() {
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
   ];
 
-  // ========== FILTRO DE CLIENTES NO MODAL DE GERENCIAMENTO ==========
   const clientesFiltradosModal = clientes.filter(c => {
     const termo = buscaClienteModal.toLowerCase();
     const nomeBate = c.nome.toLowerCase().includes(termo);
     const telefoneBate = c.telefone && c.telefone.includes(termo);
     return nomeBate || telefoneBate;
   });
-
-  // ========== RENDERIZAÇÃO ==========
 
   const categorias = ["Todas", "Bebidas", "Drinks", "Porções", "Lanches"];
   const produtosFiltrados = produtos.filter((p) => {
@@ -1637,7 +1656,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50 overflow-x-hidden">
-      {/* CABEÇALHO */}
       <header className="border-b border-zinc-800 bg-zinc-900/50 px-4 py-3 md:px-6 md:py-4 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 backdrop-blur-md sticky top-0 z-10 w-full">
         <div className="flex items-center justify-between w-full lg:w-auto">
           <div className="flex items-center gap-4">
@@ -1651,12 +1669,7 @@ export default function Dashboard() {
           </div>
           <div className="lg:hidden flex flex-col items-end">
             <span className="text-[10px] font-bold text-zinc-500 uppercase">{usuario.role}</span>
-            <button
-              onClick={() => { localStorage.removeItem("usuario"); router.push("/"); }}
-              className="text-[10px] text-red-500 hover:text-red-400 font-bold uppercase transition-colors"
-            >
-              Sair
-            </button>
+            <button onClick={() => { localStorage.removeItem("usuario"); router.push("/"); }} className="text-[10px] text-red-500 hover:text-red-400 font-bold uppercase transition-colors">Sair</button>
           </div>
         </div>
         
@@ -1683,7 +1696,6 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* SALÃO */}
       <main className="p-4 md:p-6 max-w-7xl mx-auto w-full">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl md:text-2xl font-black uppercase italic">Salão</h2>
@@ -1718,7 +1730,6 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* ========== MODAL ANIVERSARIANTES ========== */}
       {modalAniversariantesAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
@@ -1730,17 +1741,10 @@ export default function Dashboard() {
             <div className="p-4 md:p-6 flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-zinc-950 p-4 rounded-2xl border border-zinc-800">
                 <span className="text-zinc-400 font-bold uppercase text-xs tracking-widest">Filtrar por Mês:</span>
-                <select 
-                  value={mesAniversario} 
-                  onChange={(e) => setMesAniversario(parseInt(e.target.value))}
-                  className="bg-zinc-900 border border-zinc-700 text-white text-sm font-bold rounded-lg px-4 py-2 outline-none focus:border-indigo-500 w-full sm:w-auto"
-                >
-                  {mesesAno.map((mes, index) => (
-                    <option key={index} value={index + 1}>{mes}</option>
-                  ))}
+                <select value={mesAniversario} onChange={(e) => setMesAniversario(parseInt(e.target.value))} className="bg-zinc-900 border border-zinc-700 text-white text-sm font-bold rounded-lg px-4 py-2 outline-none focus:border-indigo-500 w-full sm:w-auto">
+                  {mesesAno.map((mes, index) => (<option key={index} value={index + 1}>{mes}</option>))}
                 </select>
               </div>
-
               <div className="space-y-3 overflow-y-auto max-h-[50vh]">
                 {aniversariantesFiltrados.length === 0 ? (
                   <p className="text-zinc-500 text-center py-8 font-bold uppercase text-sm">Nenhum cliente faz aniversário neste mês.</p>
@@ -1753,16 +1757,8 @@ export default function Dashboard() {
 
                     return (
                       <div key={cliente.id} className={`flex items-center justify-between p-4 rounded-xl border transition-all ${ehHoje ? 'bg-indigo-600/20 border-indigo-500' : 'bg-zinc-900 border-zinc-800'}`}>
-                        <div>
-                          <p className="font-black text-zinc-100 uppercase">{cliente.nome}</p>
-                          <p className="text-xs text-zinc-400 mt-1">Contato: {cliente.telefone || 'Não informado'}</p>
-                        </div>
-                        <div className="flex flex-col items-end">
-                          <span className={`text-2xl font-black italic ${ehHoje ? 'text-indigo-400' : 'text-zinc-500'}`}>
-                            Dia {dia}
-                          </span>
-                          {ehHoje && <span className="text-[10px] font-black text-white bg-indigo-500 px-2 py-0.5 rounded mt-1 uppercase animate-pulse">Hoje!</span>}
-                        </div>
+                        <div><p className="font-black text-zinc-100 uppercase">{cliente.nome}</p><p className="text-xs text-zinc-400 mt-1">Contato: {cliente.telefone || 'Não informado'}</p></div>
+                        <div className="flex flex-col items-end"><span className={`text-2xl font-black italic ${ehHoje ? 'text-indigo-400' : 'text-zinc-500'}`}>Dia {dia}</span>{ehHoje && <span className="text-[10px] font-black text-white bg-indigo-500 px-2 py-0.5 rounded mt-1 uppercase animate-pulse">Hoje!</span>}</div>
                       </div>
                     );
                   })
@@ -1773,7 +1769,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== MODAL GERENCIAR CLIENTES ========== */}
       {modalClientesAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -1782,51 +1777,23 @@ export default function Dashboard() {
               <button onClick={() => setModalClientesAberto(false)} className="text-zinc-500 hover:text-zinc-300 text-2xl">✕</button>
             </div>
             <div className="p-4 md:p-6">
-              
               <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                <div className="flex-1 relative">
-                  <input
-                    type="text"
-                    placeholder="Buscar cliente por nome ou telefone..."
-                    value={buscaClienteModal}
-                    onChange={(e) => setBuscaClienteModal(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-50 font-bold focus:border-pink-500 outline-none"
-                  />
-                </div>
-                <button onClick={() => abrirFormCliente()} className="bg-pink-600 hover:bg-pink-500 text-white px-4 py-3 rounded-xl text-xs font-black uppercase transition-all w-full sm:w-auto shrink-0 shadow-xl">
-                  + Novo Cliente
-                </button>
+                <div className="flex-1 relative"><input type="text" placeholder="Buscar cliente por nome ou telefone..." value={buscaClienteModal} onChange={(e) => setBuscaClienteModal(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-50 font-bold focus:border-pink-500 outline-none" /></div>
+                <button onClick={() => abrirFormCliente()} className="bg-pink-600 hover:bg-pink-500 text-white px-4 py-3 rounded-xl text-xs font-black uppercase transition-all w-full sm:w-auto shrink-0 shadow-xl">+ Novo Cliente</button>
               </div>
-
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm min-w-[500px]">
                   <thead className="bg-zinc-950 text-zinc-500 text-[10px] font-black uppercase border-b border-zinc-800">
-                    <tr>
-                      <th className="p-3">Nome</th>
-                      <th className="p-3">Telefone</th>
-                      <th className="p-3">Email</th>
-                      <th className="p-3">Nascimento</th>
-                      <th className="p-3 text-center">Ações</th>
-                    </tr>
+                    <tr><th className="p-3">Nome</th><th className="p-3">Telefone</th><th className="p-3">Email</th><th className="p-3">Nascimento</th><th className="p-3 text-center">Ações</th></tr>
                   </thead>
                   <tbody>
                     {clientesFiltradosModal.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="p-8 text-center text-zinc-500 font-bold uppercase text-sm">
-                          Nenhum cliente encontrado.
-                        </td>
-                      </tr>
+                      <tr><td colSpan={5} className="p-8 text-center text-zinc-500 font-bold uppercase text-sm">Nenhum cliente encontrado.</td></tr>
                     ) : (
                       clientesFiltradosModal.map((c) => (
                         <tr key={c.id} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
-                          <td className="p-3 font-bold uppercase">{c.nome}</td>
-                          <td className="p-3 text-zinc-400">{c.telefone || "-"}</td>
-                          <td className="p-3 text-zinc-400">{c.email || "-"}</td>
-                          <td className="p-3 text-zinc-400">{c.data_nascimento ? new Date(c.data_nascimento).toLocaleDateString() : "-"}</td>
-                          <td className="p-3 text-center space-x-2">
-                            <button onClick={() => abrirFormCliente(c)} className="text-blue-400 hover:text-blue-300 text-xs font-black uppercase">Editar</button>
-                            <button onClick={() => excluirCliente(c.id)} className="text-red-500 hover:text-red-400 text-xs font-black uppercase">Excluir</button>
-                          </td>
+                          <td className="p-3 font-bold uppercase">{c.nome}</td><td className="p-3 text-zinc-400">{c.telefone || "-"}</td><td className="p-3 text-zinc-400">{c.email || "-"}</td><td className="p-3 text-zinc-400">{c.data_nascimento ? new Date(c.data_nascimento).toLocaleDateString() : "-"}</td>
+                          <td className="p-3 text-center space-x-2"><button onClick={() => abrirFormCliente(c)} className="text-blue-400 hover:text-blue-300 text-xs font-black uppercase">Editar</button><button onClick={() => excluirCliente(c.id)} disabled={processando} className="text-red-500 hover:text-red-400 text-xs font-black uppercase disabled:opacity-50">Excluir</button></td>
                         </tr>
                       ))
                     )}
@@ -1838,40 +1805,24 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* MODAL FORMULÁRIO CLIENTE */}
       {modalClienteFormAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl p-4 md:p-6">
-            <h3 className="text-xl md:text-2xl font-black text-pink-500 uppercase italic mb-6">
-              {clienteEditando ? "Editar Cliente" : "Novo Cliente"}
-            </h3>
+            <h3 className="text-xl md:text-2xl font-black text-pink-500 uppercase italic mb-6">{clienteEditando ? "Editar Cliente" : "Novo Cliente"}</h3>
             <form onSubmit={salvarCliente} className="space-y-4">
-              <div>
-                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Nome *</label>
-                <input type="text" value={formCliente.nome} onChange={(e) => setFormCliente({ ...formCliente, nome: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-pink-500 outline-none" required />
-              </div>
-              <div>
-                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Telefone</label>
-                <input type="text" value={formCliente.telefone} onChange={(e) => setFormCliente({ ...formCliente, telefone: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-pink-500 outline-none" />
-              </div>
-              <div>
-                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Email</label>
-                <input type="email" value={formCliente.email} onChange={(e) => setFormCliente({ ...formCliente, email: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-pink-500 outline-none" />
-              </div>
-              <div>
-                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Data de Nascimento</label>
-                <input type="date" value={formCliente.data_nascimento} onChange={(e) => setFormCliente({ ...formCliente, data_nascimento: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-pink-500 outline-none" />
-              </div>
+              <div><label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Nome *</label><input type="text" value={formCliente.nome} onChange={(e) => setFormCliente({ ...formCliente, nome: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-pink-500 outline-none" required /></div>
+              <div><label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Telefone</label><input type="text" value={formCliente.telefone} onChange={(e) => setFormCliente({ ...formCliente, telefone: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-pink-500 outline-none" /></div>
+              <div><label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Email</label><input type="email" value={formCliente.email} onChange={(e) => setFormCliente({ ...formCliente, email: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-pink-500 outline-none" /></div>
+              <div><label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Data de Nascimento</label><input type="date" value={formCliente.data_nascimento} onChange={(e) => setFormCliente({ ...formCliente, data_nascimento: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-pink-500 outline-none" /></div>
               <div className="flex gap-3 mt-6">
                 <button type="button" onClick={() => { setModalClienteFormAberto(false); setModalClientesAberto(true); setClienteEditando(null); }} className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all">Cancelar</button>
-                <button type="submit" className="flex-1 bg-pink-600 hover:bg-pink-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all">Salvar</button>
+                <button type="submit" disabled={processando} className="flex-1 bg-pink-600 hover:bg-pink-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all disabled:opacity-50">{processando ? "Aguarde..." : "Salvar"}</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* MODAL ADICIONAR GARÇOM */}
       {modalGarcomAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
@@ -1880,7 +1831,7 @@ export default function Dashboard() {
               <button onClick={() => setModalGarcomAberto(false)} className="text-zinc-500 hover:text-zinc-300 text-2xl">✕</button>
             </div>
             <div className="p-4 md:p-6">
-              <button onClick={() => abrirFormGarcom()} className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-3 rounded-xl text-xs font-black uppercase transition-all mb-6 w-full sm:w-auto shadow-xl">+ Novo Garçom</button>
+              <button onClick={() => { setFormGarcom({ nome: "", email: "", senha: "", confirmarSenha: "" }); setModalGarcomAberto(false); setModalGarcomFormAberto(true); }} className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-3 rounded-xl text-xs font-black uppercase transition-all mb-6 w-full sm:w-auto shadow-xl">+ Novo Garçom</button>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm min-w-[500px]">
                   <thead className="bg-zinc-950 text-zinc-500 text-[10px] font-black uppercase border-b border-zinc-800">
@@ -1893,7 +1844,7 @@ export default function Dashboard() {
                       garcons.map((g) => (
                         <tr key={g.id} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
                           <td className="p-3 font-bold uppercase">{g.nome}</td><td className="p-3 text-zinc-400">{g.email}</td>
-                          <td className="p-3 text-center"><button onClick={() => excluirGarcom(g.id)} className="text-red-500 hover:text-red-400 text-xs font-black uppercase">🗑️ Excluir Acesso</button></td>
+                          <td className="p-3 text-center"><button onClick={() => excluirGarcom(g.id)} disabled={processando} className="text-red-500 hover:text-red-400 text-xs font-black uppercase disabled:opacity-50">🗑️ Excluir Acesso</button></td>
                         </tr>
                       ))
                     )}
@@ -1905,7 +1856,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* MODAL FORMULÁRIO GARÇOM */}
       {modalGarcomFormAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl p-4 md:p-6">
@@ -1917,14 +1867,13 @@ export default function Dashboard() {
               <div><label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Confirmar Senha</label><input type="password" value={formGarcom.confirmarSenha} onChange={(e) => setFormGarcom({ ...formGarcom, confirmarSenha: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required /></div>
               <div className="flex gap-3 mt-6">
                 <button type="button" onClick={() => { setModalGarcomFormAberto(false); setModalGarcomAberto(true); }} className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all">Cancelar</button>
-                <button type="submit" disabled={cadastrandoGarcom} className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed">{cadastrandoGarcom ? "Salvando..." : "Salvar"}</button>
+                <button type="submit" disabled={processando} className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all disabled:opacity-50">{processando ? "Aguarde..." : "Salvar"}</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* MODAL LISTA DE FIADOS */}
       {isGerente && fiadosAberto && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
@@ -1956,7 +1905,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* MODAL RECEBER FIADO */}
       {isGerente && fiadoModalAberto && fiadoSelecionado && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-4 md:p-6">
@@ -1964,29 +1912,14 @@ export default function Dashboard() {
               <h3 className="text-xl md:text-2xl font-black text-orange-500 uppercase italic">Receber Fiado</h3>
               <button onClick={() => setFiadoModalAberto(false)} className="text-zinc-500 hover:text-zinc-300 text-2xl">✕</button>
             </div>
-            
             <p className="text-zinc-400 text-sm mb-4">Cliente: <span className="font-bold text-white">{fiadoSelecionado.cliente_nome}</span></p>
-
             <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 mb-6">
               <p className="text-zinc-400 text-sm">Total pendente: <span className="font-bold text-orange-500 text-xl">R$ {Number(fiadoSelecionado.total).toFixed(2)}</span></p>
             </div>
             <div className="mb-4">
               <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block mb-2">Valor a pagar (R$)</label>
-              <input
-                type="number" step="0.01" min="0" value={valorPagamentoFiado || ""}
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value) || 0;
-                  setValorPagamentoFiado(val);
-                  if (pagamentosFiado.length > 0) {
-                    const novos = pagamentosFiado.map((p, i) => i === 0 ? { ...p, valor: val } : p);
-                    setPagamentosFiado(novos);
-                  }
-                }}
-                placeholder="0,00"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-200 font-bold text-right outline-none focus:border-orange-500"
-              />
+              <input type="number" step="0.01" min="0" value={valorPagamentoFiado || ""} onChange={(e) => { const val = parseFloat(e.target.value) || 0; setValorPagamentoFiado(val); if (pagamentosFiado.length > 0) { const novos = pagamentosFiado.map((p, i) => i === 0 ? { ...p, valor: val } : p); setPagamentosFiado(novos); } }} placeholder="0,00" className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-200 font-bold text-right outline-none focus:border-orange-500" />
             </div>
-            
             <div className="space-y-4 mb-6">
               <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block">Formas de Pagamento</label>
               {pagamentosFiado.map((pag) => (
@@ -1996,9 +1929,7 @@ export default function Dashboard() {
                   </select>
                   <div className="flex w-full gap-2 items-center">
                     <input type="number" step="0.01" min="0" value={pag.valor || ""} onChange={(e) => { const val = parseFloat(e.target.value) || 0; atualizarValorPagamentoFiado(pag.id, val); }} placeholder="0,00" className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold w-full md:w-28 text-right outline-none focus:border-orange-500" />
-                    {pagamentosFiado.length > 1 && (
-                      <button onClick={() => removerPagamentoFiado(pag.id)} className="text-red-500 hover:text-red-400 text-lg font-black shrink-0 px-2">✕</button>
-                    )}
+                    {pagamentosFiado.length > 1 && (<button onClick={() => removerPagamentoFiado(pag.id)} className="text-red-500 hover:text-red-400 text-lg font-black shrink-0 px-2">✕</button>)}
                   </div>
                 </div>
               ))}
@@ -2007,16 +1938,13 @@ export default function Dashboard() {
             <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 space-y-2 mb-6">
               <div className="flex justify-between"><span className="text-zinc-400 text-sm">Total Pendente:</span><span className="font-bold text-orange-500">R$ {Number(fiadoSelecionado.total).toFixed(2)}</span></div>
               <div className="flex justify-between"><span className="text-zinc-400 text-sm">Total Pago:</span><span className="font-bold text-green-500">R$ {pagamentosFiado.reduce((acc, p) => acc + (p.valor || 0), 0).toFixed(2)}</span></div>
-              {pagamentosFiado.reduce((acc, p) => acc + (p.valor || 0), 0) > 0 && (
-                <div className="flex justify-between"><span className="text-zinc-400 text-sm">Saldo Restante:</span><span className="font-bold text-blue-400">R$ {(Number(fiadoSelecionado.total) - pagamentosFiado.reduce((acc, p) => acc + (p.valor || 0), 0)).toFixed(2)}</span></div>
-              )}
+              {pagamentosFiado.reduce((acc, p) => acc + (p.valor || 0), 0) > 0 && (<div className="flex justify-between"><span className="text-zinc-400 text-sm">Saldo Restante:</span><span className="font-bold text-blue-400">R$ {(Number(fiadoSelecionado.total) - pagamentosFiado.reduce((acc, p) => acc + (p.valor || 0), 0)).toFixed(2)}</span></div>)}
             </div>
-            <button onClick={receberFiado} className="w-full bg-green-600 hover:bg-green-500 text-white font-black py-4 rounded-xl text-lg uppercase italic transition-all shadow-xl">Confirmar Recebimento</button>
+            <button onClick={receberFiado} disabled={processando} className="w-full bg-green-600 hover:bg-green-500 text-white font-black py-4 rounded-xl text-lg uppercase italic transition-all shadow-xl disabled:opacity-50">{processando ? "Aguarde..." : "Confirmar Recebimento"}</button>
           </div>
         </div>
       )}
 
-      {/* MODAL ESTOQUE */}
       {isGerente && estoqueAberto && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
@@ -2025,9 +1953,7 @@ export default function Dashboard() {
               <button onClick={() => setEstoqueAberto(false)} className="text-zinc-500 hover:text-zinc-300 text-2xl">✕</button>
             </div>
             <div className="p-4 md:p-6 overflow-y-auto flex-1">
-              <button onClick={() => abrirFormInsumo()} className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all mb-4 w-full md:w-auto">
-                + Adicionar Insumo
-              </button>
+              <button onClick={() => abrirFormInsumo()} className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all mb-4 w-full md:w-auto">+ Adicionar Insumo</button>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm min-w-[500px]">
                   <thead className="bg-zinc-950 text-zinc-500 text-[10px] font-black uppercase border-b border-zinc-800">
@@ -2039,7 +1965,7 @@ export default function Dashboard() {
                         <td className="p-3 font-bold uppercase">{i.nome}</td><td className="p-3 text-zinc-400">{i.unidade}</td><td className="p-3 text-right text-yellow-500 font-black">{i.estoque}</td><td className="p-3 text-right text-zinc-400">R$ {Number(i.custo_unidade).toFixed(2)}</td>
                         <td className="p-3 text-center space-x-2">
                           <button onClick={() => abrirFormInsumo(i)} className="text-blue-400 hover:text-blue-300 text-xs font-black uppercase">Editar</button>
-                          <button onClick={() => excluirInsumo(i.id)} className="text-red-500 hover:text-red-400 text-xs font-black uppercase">Excluir</button>
+                          <button onClick={() => excluirInsumo(i.id)} disabled={processando} className="text-red-500 hover:text-red-400 text-xs font-black uppercase disabled:opacity-50">Excluir</button>
                         </td>
                       </tr>
                     ))}
@@ -2051,7 +1977,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* MODAL FORMULÁRIO INSUMO */}
       {isGerente && modalInsumoAberto && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl p-4 md:p-6">
@@ -2068,14 +1993,13 @@ export default function Dashboard() {
               <div><label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Custo por Unidade (R$)</label><input type="number" step="0.01" value={formInsumo.custo_unidade} onChange={(e) => setFormInsumo({ ...formInsumo, custo_unidade: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-emerald-500 outline-none" required /></div>
               <div className="flex gap-3 mt-6">
                 <button type="button" onClick={() => setModalInsumoAberto(false)} className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all">Cancelar</button>
-                <button type="submit" className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all">Salvar</button>
+                <button type="submit" disabled={processando} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all disabled:opacity-50">{processando ? "Aguarde..." : "Salvar"}</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* MODAL PRODUTO */}
       {isGerente && modalProdutoAberto && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-4 md:p-6">
@@ -2121,14 +2045,13 @@ export default function Dashboard() {
               </div>
               <div className="flex gap-3 mt-6">
                 <button type="button" onClick={() => setModalProdutoAberto(false)} className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all">Cancelar</button>
-                <button type="submit" className="flex-1 bg-yellow-600 hover:bg-yellow-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all">Salvar Produto</button>
+                <button type="submit" disabled={processando} className="flex-1 bg-yellow-600 hover:bg-yellow-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all disabled:opacity-50">{processando ? "Aguarde..." : "Salvar Produto"}</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* ========== CARDÁPIO (Mesa) ========== */}
       {cardapioAberto && (
         <div className="fixed inset-0 bg-black/60 z-40 flex justify-start">
           <div className="bg-zinc-950 w-full md:max-w-md h-full overflow-y-auto border-r border-zinc-800 p-4 md:p-6 animate-in slide-in-from-left duration-300 flex flex-col">
@@ -2166,7 +2089,7 @@ export default function Dashboard() {
                           <div className="flex items-center gap-2 mt-1">
                             <button onClick={() => abrirEdicaoProduto(prod)} className="text-blue-400 hover:text-blue-300 text-[10px] font-black uppercase p-1 -ml-1">Editar</button>
                             <span className="text-zinc-600 text-[10px]">|</span>
-                            <button onClick={() => excluirProduto(prod.id)} className="text-red-500 hover:text-red-400 text-[10px] font-black uppercase flex items-center gap-1 p-1">🗑️ Excluir</button>
+                            <button onClick={() => excluirProduto(prod.id)} disabled={processando} className="text-red-500 hover:text-red-400 text-[10px] font-black uppercase flex items-center gap-1 p-1 disabled:opacity-50">🗑️ Excluir</button>
                           </div>
                         )}
                       </div>
@@ -2183,19 +2106,18 @@ export default function Dashboard() {
 
             <div className="mt-6 pt-4 border-t border-zinc-800 bg-zinc-950 sticky bottom-0 shrink-0">
               <button
-                onClick={enviarPedido} disabled={pedidoAtual.length === 0}
-                className={`w-full font-black py-4 rounded-xl uppercase italic tracking-tighter text-base md:text-lg transition-all ${
+                onClick={enviarPedido} disabled={pedidoAtual.length === 0 || processando}
+                className={`w-full font-black py-4 rounded-xl uppercase italic tracking-tighter text-base md:text-lg transition-all disabled:opacity-50 ${
                   pedidoAtual.length > 0 ? "bg-yellow-500 text-zinc-950 hover:bg-yellow-400 shadow-xl" : "bg-zinc-800 text-zinc-500 cursor-not-allowed"
                 }`}
               >
-                Enviar Pedido - R$ {pedidoAtual.reduce((acc, i) => acc + i.preco * i.quantidade, 0).toFixed(2)}
+                {processando ? "Enviando..." : `Enviar Pedido - R$ ${pedidoAtual.reduce((acc, i) => acc + i.preco * i.quantidade, 0).toFixed(2)}`}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ========== MODAL COZINHA ========== */}
       {isGerente && cozinhaAberta && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
@@ -2227,7 +2149,7 @@ export default function Dashboard() {
                       ))}
                     </div>
                     <div className="p-4 border-t border-zinc-800 bg-zinc-950/50">
-                      <button onClick={() => finalizarPedidoCozinha(pedido.id)} className="w-full bg-green-600 hover:bg-green-500 text-white font-black py-4 rounded-xl text-sm uppercase italic transition-all flex justify-center items-center gap-2">✅ Finalizar e Entregar</button>
+                      <button onClick={() => finalizarPedidoCozinha(pedido.id)} disabled={processando} className="w-full bg-green-600 hover:bg-green-500 text-white font-black py-4 rounded-xl text-sm uppercase italic transition-all flex justify-center items-center gap-2 disabled:opacity-50">✅ {processando ? "Aguarde..." : "Finalizar e Entregar"}</button>
                     </div>
                   </div>
                 ))
@@ -2237,7 +2159,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== MODAL NOVA MESA ========== */}
       {modalAberto && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-40 p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl">
@@ -2253,14 +2174,13 @@ export default function Dashboard() {
               </div>
               <div className="flex gap-3 mt-6">
                 <button type="button" onClick={() => setModalAberto(false)} className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all">Cancelar</button>
-                <button type="submit" className="flex-1 bg-yellow-500 text-zinc-950 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-yellow-400 transition-all">Abrir Mesa</button>
+                <button type="submit" disabled={processando} className="flex-1 bg-yellow-500 text-zinc-950 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-yellow-400 transition-all disabled:opacity-50">{processando ? "Aguarde..." : "Abrir Mesa"}</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* ========== FICHA DA MESA ========== */}
       {fichaAberta && mesaSelecionada && (
         <div className="fixed inset-0 bg-black/60 z-30 flex justify-end">
           <div className="bg-zinc-950 w-full md:max-w-md h-full overflow-y-auto border-l border-zinc-800 p-4 md:p-6 animate-in slide-in-from-right duration-300 flex flex-col">
@@ -2304,7 +2224,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== CHECKOUT MODAL ========== */}
       {checkoutAberto && mesaSelecionada && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-4 md:p-6">
@@ -2318,7 +2237,6 @@ export default function Dashboard() {
               <p className="text-zinc-400 text-sm">Total da conta: <span className="font-bold text-yellow-500 text-xl md:text-2xl">R$ {Number(mesaSelecionada.total).toFixed(2)}</span></p>
             </div>
 
-            {/* Vincular Cliente */}
             <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 mb-4">
               <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block mb-2">Vincular Cliente (opcional)</label>
               <div className="relative flex gap-2">
@@ -2345,12 +2263,11 @@ export default function Dashboard() {
                   <input type="text" placeholder="Telefone" value={novoClienteForm.telefone} onChange={(e) => setNovoClienteForm({ ...novoClienteForm, telefone: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-sm outline-none focus:border-pink-500" />
                   <input type="email" placeholder="Email" value={novoClienteForm.email} onChange={(e) => setNovoClienteForm({ ...novoClienteForm, email: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-sm outline-none focus:border-pink-500" />
                   <input type="date" value={novoClienteForm.data_nascimento} onChange={(e) => setNovoClienteForm({ ...novoClienteForm, data_nascimento: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-sm outline-none focus:border-pink-500" />
-                  <button onClick={criarClienteRapido} className="w-full bg-pink-600 hover:bg-pink-500 text-white font-black py-2 rounded-lg text-sm uppercase transition-all">Cadastrar e vincular</button>
+                  <button onClick={criarClienteRapido} disabled={processando} className="w-full bg-pink-600 hover:bg-pink-500 text-white font-black py-2 rounded-lg text-sm uppercase transition-all disabled:opacity-50">{processando ? "Aguarde..." : "Cadastrar e vincular"}</button>
                 </div>
               )}
             </div>
 
-            {/* Divisão Conta */}
             <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 mb-4">
               <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block mb-2">Dividir igual entre pessoas</label>
               <div className="flex items-center gap-3">
@@ -2361,7 +2278,6 @@ export default function Dashboard() {
               {dividirIgual && <p className="text-green-500 text-xs mt-2 font-bold">✓ Valores divididos entre {numeroPessoas}</p>}
             </div>
 
-            {/* Pagamentos */}
             <div className="space-y-4 mb-6">
               <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block">Formas de Pagamento</label>
               {pagamentos.map((pag) => (
@@ -2373,7 +2289,7 @@ export default function Dashboard() {
                     <input type="number" step="0.01" min="0" value={pag.valor || ""} onChange={(e) => atualizarValorPagamento(pag.id, parseFloat(e.target.value) || 0)} placeholder="0,00" className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold w-full md:w-28 text-right outline-none focus:border-yellow-500" />
                     {pagamentos.length > 1 && <button onClick={() => removerPagamento(pag.id)} className="text-red-500 hover:text-red-400 text-lg font-black shrink-0 px-2">✕</button>}
                   </div>
-                  <button onClick={() => pagarParcela(pag.id)} className="w-full md:w-auto bg-green-600 hover:bg-green-500 text-white px-3 py-2 rounded-lg text-[10px] md:text-xs font-black uppercase transition-all">Pagar agora</button>
+                  <button onClick={() => pagarParcela(pag.id)} disabled={processando} className="w-full md:w-auto bg-green-600 hover:bg-green-500 text-white px-3 py-2 rounded-lg text-[10px] md:text-xs font-black uppercase transition-all disabled:opacity-50">{processando ? "..." : "Pagar agora"}</button>
                 </div>
               ))}
               <button onClick={adicionarPagamento} className="text-yellow-500 hover:text-yellow-400 text-xs font-black uppercase transition-colors">+ Adicionar forma</button>
@@ -2395,7 +2311,6 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Botões Finais */}
             <div className="flex flex-col gap-3">
               <div className="flex flex-col md:flex-row gap-3">
                 <button onClick={enviarWhatsAppComanda} className="flex-1 bg-green-500 hover:bg-green-400 text-white font-black py-4 rounded-xl text-xs md:text-sm uppercase italic transition-all shadow-xl flex items-center justify-center gap-2">📱 Enviar WhatsApp</button>
@@ -2408,13 +2323,12 @@ export default function Dashboard() {
                   className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl text-xs md:text-sm uppercase italic transition-all"
                 >🖨️ Imprimir</button>
               </div>
-              <button onClick={finalizarCheckout} className="w-full bg-green-600 hover:bg-green-500 text-white font-black py-4 md:py-5 rounded-xl text-base md:text-lg uppercase italic transition-all shadow-xl">Finalizar Conta</button>
+              <button onClick={finalizarCheckout} disabled={processando} className="w-full bg-green-600 hover:bg-green-500 text-white font-black py-4 md:py-5 rounded-xl text-base md:text-lg uppercase italic transition-all shadow-xl disabled:opacity-50">{processando ? "Aguarde..." : "Finalizar Conta"}</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ========== MODAL COMANDA TÉRMICA ========== */}
       {comandaAberta && dadosComanda && (
         <ComandaTermica
           tipo={dadosComanda.tipo}
