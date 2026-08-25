@@ -215,6 +215,7 @@ export default function Dashboard() {
     }
   }
 
+  // ========== REALTIME SSOT (Fonte Única de Verdade) ==========
   useEffect(() => {
     if (!usuario) return;
 
@@ -271,6 +272,17 @@ export default function Dashboard() {
             return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
           });
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "produtos" }, (payload) => {
+          setProdutos((prev) => {
+            const map = new Map(prev.map(p => [String(p.id), p]));
+            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              map.set(String(payload.new.id), payload.new);
+            } else if (payload.eventType === 'DELETE') {
+              map.delete(String(payload.old.id));
+            }
+            return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+          });
+      })
       .on("postgres_changes", { event: "*", schema: "public", table: "clientes" }, (payload) => {
           setClientes((prev) => {
             const map = new Map(prev.map(c => [String(c.id), c]));
@@ -290,6 +302,47 @@ export default function Dashboard() {
       supabase.removeChannel(canal);
     };
   }, [usuario]);
+
+  // Sincronização Dinâmica (mantém os modais abertos atualizados com as mudanças do Realtime)
+  useEffect(() => {
+    if (mesaSelecionada) {
+      const atualizada = mesas.find(m => String(m.id) === String(mesaSelecionada.id));
+      if (atualizada) setMesaSelecionada(atualizada);
+      else setMesaSelecionada(null); // Fecha ou zera se foi deletada
+    }
+  }, [mesas]);
+
+  useEffect(() => {
+    if (fiadoSelecionado) {
+      const atualizado = fiados.find(f => String(f.id) === String(fiadoSelecionado.id));
+      if (atualizado) {
+        if (atualizado.total !== fiadoSelecionado.total || JSON.stringify(atualizado.itens) !== JSON.stringify(fiadoSelecionado.itens)) {
+          const itensDesmembrados: any[] = [];
+          if (atualizado.itens) {
+            atualizado.itens.forEach((item: any) => {
+              for (let i = 0; i < (item.quantidade || 1); i++) {
+                itensDesmembrados.push({ ...item, quantidade: 1, _id: Date.now() + Math.random() });
+              }
+            });
+          }
+          setFiadoSelecionado({ ...atualizado, itensDesmembrados });
+        }
+      } else {
+        setFiadoSelecionado(null);
+      }
+    }
+  }, [fiados]);
+
+  useEffect(() => {
+    if (!buscaCliente.trim()) {
+      setClientesFiltrados(clientes);
+    } else {
+      const filtrados = clientes.filter(c =>
+        c.nome.toLowerCase().includes(buscaCliente.toLowerCase())
+      );
+      setClientesFiltrados(filtrados);
+    }
+  }, [buscaCliente, clientes]);
 
   // ========== FUNÇÕES DE NEGÓCIO ==========
 
@@ -321,42 +374,23 @@ export default function Dashboard() {
           alert("Esta mesa já está ocupada.");
           return;
         }
-        const { data: mesaAtualizada, error: errUpdate } = await supabase
+        const { error: errUpdate } = await supabase
           .from("mesas")
           .update({ status: "ocupada", cliente: clienteMesa, total: 0, itens: [] })
-          .eq("id", mesaExistente.id)
-          .select()
-          .single();
+          .eq("id", mesaExistente.id);
 
         if (errUpdate) throw errUpdate;
-
-        setMesas((prev) => {
-          const map = new Map(prev.map(m => [String(m.id), m]));
-          map.set(String(mesaAtualizada.id), mesaAtualizada);
-          return Array.from(map.values()).sort((a, b) => a.numero - b.numero);
-        });
-
-        setModalAberto(false);
-        setNumeroMesa("");
-        setClienteMesa("");
       } else {
-        const { data: novaMesa, error: errInsert } = await supabase
+        const { error: errInsert } = await supabase
           .from("mesas")
-          .insert([{ numero: num, status: "ocupada", cliente: clienteMesa, total: 0, itens: [] }])
-          .select()
-          .single();
+          .insert([{ numero: num, status: "ocupada", cliente: clienteMesa, total: 0, itens: [] }]);
 
         if (errInsert) throw errInsert;
-
-        setMesas((prev) => {
-          const map = new Map(prev.map(m => [String(m.id), m]));
-          map.set(String(novaMesa.id), novaMesa);
-          return Array.from(map.values()).sort((a, b) => a.numero - b.numero);
-        });
-        setModalAberto(false);
-        setNumeroMesa("");
-        setClienteMesa("");
       }
+      
+      setModalAberto(false);
+      setNumeroMesa("");
+      setClienteMesa("");
     } catch (err: any) {
       alert("Erro ao abrir mesa: " + err.message);
     } finally {
@@ -405,11 +439,11 @@ export default function Dashboard() {
 
     let faltaEstoque = false;
     for (const item of pedidoAtual) {
-      const produto = produtos.find((p) => p.id === item.id);
+      const produto = produtos.find((p) => String(p.id) === String(item.id));
       if (!produto || !produto.receita || produto.receita.length === 0) continue;
 
       for (const ing of produto.receita) {
-        const insumo = insumos.find((i) => i.id === ing.insumo_id);
+        const insumo = insumos.find((i) => String(i.id) === String(ing.insumo_id));
         if (!insumo) continue;
         const qtdNecessaria = parseFloat(ing.qtd) * item.quantidade;
         if (insumo.estoque < qtdNecessaria) {
@@ -432,7 +466,7 @@ export default function Dashboard() {
       let itensAtualizados = [...itensAntigos];
 
       pedidoAtual.forEach((itemNovo: any) => {
-        const index = itensAtualizados.findIndex((i: any) => i.id === itemNovo.id);
+        const index = itensAtualizados.findIndex((i: any) => String(i.id) === String(itemNovo.id));
         if (index >= 0) {
           itensAtualizados[index].quantidade += itemNovo.quantidade;
         } else {
@@ -462,11 +496,11 @@ export default function Dashboard() {
       if (errCozinha) throw errCozinha;
 
       for (const item of pedidoAtual) {
-        const produto = produtos.find((p) => p.id === item.id);
+        const produto = produtos.find((p) => String(p.id) === String(item.id));
         if (!produto || !produto.receita || produto.receita.length === 0) continue;
 
         for (const ing of produto.receita) {
-          const insumo = insumos.find((i) => i.id === ing.insumo_id);
+          const insumo = insumos.find((i) => String(i.id) === String(ing.insumo_id));
           if (!insumo) continue;
           const qtdUsada = parseFloat(ing.qtd) * item.quantidade;
           const novoEstoque = insumo.estoque - qtdUsada;
@@ -477,42 +511,12 @@ export default function Dashboard() {
             .eq("id", insumo.id);
 
           if (errEstoque) throw errEstoque;
-
-          setInsumos((prev) => {
-            const map = new Map(prev.map(i => [String(i.id), i]));
-            const atualizado = map.get(String(insumo.id));
-            if (atualizado) {
-              map.set(String(insumo.id), { ...atualizado, estoque: novoEstoque });
-            }
-            return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
-          });
         }
       }
 
-      setPedidosCozinha((prev) => {
-         const map = new Map(prev.map(p => [String(p.id), p]));
-         map.set(String(pedidoCozinha.id), pedidoCozinha);
-         return Array.from(map.values());
-      });
-      
-      setMesas((prev) => {
-        const map = new Map(prev.map(m => [String(m.id), m]));
-        const atualizada = map.get(String(mesaSelecionada.id));
-        if (atualizada) {
-          map.set(String(mesaSelecionada.id), { ...atualizada, total: totalNovo, itens: itensAtualizados });
-        }
-        return Array.from(map.values()).sort((a, b) => a.numero - b.numero);
-      });
-
-      setMesaSelecionada((prev: any) => ({
-        ...prev,
-        total: totalNovo,
-        itens: itensAtualizados,
-      }));
       setPedidoAtual([]);
       setCardapioAberto(false);
       
-      if (usuario?.role === "gerente") tocarSomAlerta();
     } catch (err: any) {
       alert("Erro ao enviar pedido: " + err.message);
     } finally {
@@ -526,7 +530,6 @@ export default function Dashboard() {
     try {
       const { error } = await supabase.from("pedidos_cozinha").delete().eq("id", id);
       if (error) throw error;
-      setPedidosCozinha((prev) => prev.filter((p) => String(p.id) !== String(id)));
     } catch (err: any) {
       alert("Erro ao finalizar pedido: " + err.message);
     } finally {
@@ -551,17 +554,6 @@ export default function Dashboard() {
     setClientesFiltrados(clientes);
     setCheckoutAberto(true);
   }
-
-  useEffect(() => {
-    if (!buscaCliente.trim()) {
-      setClientesFiltrados(clientes);
-    } else {
-      const filtrados = clientes.filter(c =>
-        c.nome.toLowerCase().includes(buscaCliente.toLowerCase())
-      );
-      setClientesFiltrados(filtrados);
-    }
-  }, [buscaCliente, clientes]);
 
   function selecionarCliente(id: string, nome: string) {
     setClienteSelecionadoId(id);
@@ -680,7 +672,6 @@ export default function Dashboard() {
 
       if (novoTotal <= 0.01) {
         await supabase.from("mesas").delete().eq("id", mesaSelecionada.id);
-        setMesas(prev => prev.filter(m => String(m.id) !== String(mesaSelecionada.id)));
         setMesaSelecionada(null);
         setFichaAberta(false);
         setCheckoutAberto(false);
@@ -692,16 +683,6 @@ export default function Dashboard() {
           .eq("id", mesaSelecionada.id);
 
         if (errUpdate) throw errUpdate;
-
-        setMesas(prev => {
-          const map = new Map(prev.map(m => [String(m.id), m]));
-          const atualizada = map.get(String(mesaSelecionada.id));
-          if (atualizada) {
-            map.set(String(mesaSelecionada.id), { ...atualizada, total: novoTotal });
-          }
-          return Array.from(map.values()).sort((a, b) => a.numero - b.numero);
-        });
-        setMesaSelecionada((prev: any) => ({ ...prev, total: novoTotal }));
 
         const novosPagamentos = pagamentos.filter(p => p.id !== id);
         setPagamentos(novosPagamentos);
@@ -737,13 +718,6 @@ export default function Dashboard() {
 
       if (error) throw error;
 
-      setClientes(prev => {
-        const map = new Map(prev.map(c => [String(c.id), c]));
-        map.set(String(data.id), data);
-        const novos = Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
-        setClientesFiltrados(novos);
-        return novos;
-      });
       setClienteSelecionadoId(data.id);
       setBuscaCliente(data.nome);
       setMostrarNovoCliente(false);
@@ -766,7 +740,6 @@ export default function Dashboard() {
     if (totalMesa === 0) {
       setProcessando(true);
       await supabase.from("mesas").delete().eq("id", mesaSelecionada.id);
-      setMesas(prev => prev.filter(m => String(m.id) !== String(mesaSelecionada.id)));
       setMesaSelecionada(null);
       setFichaAberta(false);
       setCheckoutAberto(false);
@@ -828,48 +801,31 @@ export default function Dashboard() {
           const novoTotal = Number(fiadoExistente.total) + valorFiado;
           let itensAtuais = fiadoExistente.itens || [];
           itensVenda.forEach((itemNovo: any) => {
-            const existente = itensAtuais.find((i: any) => i.id === itemNovo.id);
+            const existente = itensAtuais.find((i: any) => String(i.id) === String(itemNovo.id));
             if (existente) {
               existente.quantidade += itemNovo.quantidade;
             } else {
               itensAtuais.push({ ...itemNovo });
             }
           });
-          await supabase
+          const { error: errUpFiado } = await supabase
             .from("fiados")
             .update({ total: novoTotal, itens: itensAtuais })
             .eq("id", fiadoExistente.id);
-            
-          setFiados(prev => {
-            const map = new Map(prev.map(f => [String(f.id), f]));
-            const existente = map.get(String(fiadoExistente.id));
-            if (existente) {
-              map.set(String(fiadoExistente.id), { ...existente, total: novoTotal, itens: itensAtuais });
-            }
-            return Array.from(map.values()).sort((a, b) => new Date(b.data_criacao).getTime() - new Date(a.data_criacao).getTime());
-          });
+          if (errUpFiado) throw errUpFiado;
         } else {
-          const { data: novoRegistro, error: errInsert } = await supabase
+          const { error: errInsert } = await supabase
             .from("fiados")
             .insert([{
               cliente_nome: nomeFiado,
               total: valorFiado,
               itens: itensVenda,
-            }])
-            .select()
-            .single();
+            }]);
           if (errInsert) throw errInsert;
-          
-          setFiados(prev => {
-             const map = new Map(prev.map(f => [String(f.id), f]));
-             map.set(String(novoRegistro.id), novoRegistro);
-             return Array.from(map.values()).sort((a, b) => new Date(b.data_criacao).getTime() - new Date(a.data_criacao).getTime());
-          });
         }
       }
 
       await supabase.from("mesas").delete().eq("id", mesaSelecionada.id);
-      setMesas(prev => prev.filter(m => String(m.id) !== String(mesaSelecionada.id)));
       setMesaSelecionada(null);
       setFichaAberta(false);
       setCheckoutAberto(false);
@@ -931,7 +887,7 @@ export default function Dashboard() {
       const novosDesmembrados = fiadoSelecionado.itensDesmembrados.filter((_: any, i: number) => i !== idx);
       const itensAgrupados: any[] = [];
       novosDesmembrados.forEach((i: any) => {
-        const existente = itensAgrupados.find((x: any) => x.id === i.id);
+        const existente = itensAgrupados.find((x: any) => String(x.id) === String(i.id));
         if (existente) {
           existente.quantidade += 1;
         } else {
@@ -946,20 +902,6 @@ export default function Dashboard() {
         .eq("id", fiadoSelecionado.id);
 
       if (error) throw error;
-
-      setFiados(prev => {
-        const map = new Map(prev.map(f => [String(f.id), f]));
-        const f = map.get(String(fiadoSelecionado.id));
-        if (f) map.set(String(fiadoSelecionado.id), { ...f, itens: itensAgrupados, total: novoTotal });
-        return Array.from(map.values()).sort((a, b) => new Date(b.data_criacao).getTime() - new Date(a.data_criacao).getTime());
-      });
-      
-      setFiadoSelecionado((prev: any) => ({
-        ...prev,
-        itensDesmembrados: novosDesmembrados,
-        total: novoTotal,
-        itens: itensAgrupados,
-      }));
       setItensSelecionadosFiado([]);
       alert("Item removido do fiado.");
     } catch (err: any) {
@@ -1035,21 +977,14 @@ export default function Dashboard() {
       const novoTotal = parseFloat((totalPendente - somaPago).toFixed(2));
 
       if (novoTotal <= 0.01) {
-        await supabase.from("fiados").delete().eq("id", fiadoSelecionado.id);
-        setFiados(prev => prev.filter(f => String(f.id) !== String(fiadoSelecionado.id)));
+        const { error: errDel } = await supabase.from("fiados").delete().eq("id", fiadoSelecionado.id);
+        if (errDel) throw errDel;
       } else {
         const { error: errUpdate } = await supabase
           .from("fiados")
           .update({ total: novoTotal })
           .eq("id", fiadoSelecionado.id);
-
         if (errUpdate) throw errUpdate;
-        setFiados(prev => {
-          const map = new Map(prev.map(f => [String(f.id), f]));
-          const f = map.get(String(fiadoSelecionado.id));
-          if (f) map.set(String(fiadoSelecionado.id), { ...f, total: novoTotal });
-          return Array.from(map.values()).sort((a, b) => new Date(b.data_criacao).getTime() - new Date(a.data_criacao).getTime());
-        });
       }
 
       setFiadoModalAberto(false);
@@ -1138,29 +1073,14 @@ export default function Dashboard() {
           .update({ nome, unidade, estoque: estoqueNum, custo_unidade: custoNum })
           .eq("id", insumoEditando.id);
         if (error) throw error;
-        
-        setInsumos(prev => {
-          const map = new Map(prev.map(i => [String(i.id), i]));
-          const original = map.get(String(insumoEditando.id));
-          if (original) map.set(String(insumoEditando.id), { ...original, nome, unidade, estoque: estoqueNum, custo_unidade: custoNum });
-          return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
-        });
       } else {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from("insumos")
-          .insert([{ nome, unidade, estoque: estoqueNum, custo_unidade: custoNum }])
-          .select()
-          .single();
+          .insert([{ nome, unidade, estoque: estoqueNum, custo_unidade: custoNum }]);
         if (error) throw error;
-        
-        setInsumos(prev => {
-          const map = new Map(prev.map(i => [String(i.id), i]));
-          map.set(String(data.id), data);
-          return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
-        });
       }
       setModalInsumoAberto(false);
-      alert("Insumo salvo com sucesso!");
+      alert("Insumo enviado para o banco com sucesso!");
     } catch (err: any) {
       alert("Erro ao salvar insumo: " + err.message);
     } finally {
@@ -1175,7 +1095,6 @@ export default function Dashboard() {
     try {
       const { error } = await supabase.from("insumos").delete().eq("id", id);
       if (error) throw error;
-      setInsumos(prev => prev.filter(i => String(i.id) !== String(id)));
     } catch (err: any) {
       alert("Erro ao excluir insumo: " + err.message);
     } finally {
@@ -1274,24 +1193,11 @@ export default function Dashboard() {
           .update(dados)
           .eq("id", produtoEditando.id);
         if (error) throw error;
-        setProdutos(prev => {
-          const map = new Map(prev.map(p => [String(p.id), p]));
-          const original = map.get(String(produtoEditando.id));
-          if(original) map.set(String(produtoEditando.id), { ...original, ...dados });
-          return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
-        });
       } else {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from("produtos")
-          .insert([dados])
-          .select()
-          .single();
+          .insert([dados]);
         if (error) throw error;
-        setProdutos(prev => {
-          const map = new Map(prev.map(p => [String(p.id), p]));
-          map.set(String(data.id), data);
-          return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
-        });
       }
       setModalProdutoAberto(false);
       alert("Produto salvo com sucesso!");
@@ -1309,7 +1215,6 @@ export default function Dashboard() {
     try {
       const { error } = await supabase.from("produtos").delete().eq("id", id);
       if (error) throw error;
-      setProdutos((prev) => prev.filter((p) => String(p.id) !== String(id)));
       alert("Produto excluído com sucesso!");
     } catch (err: any) {
       alert("Erro ao excluir produto: " + err.message);
@@ -1459,34 +1364,16 @@ export default function Dashboard() {
           })
           .eq("id", clienteEditando.id);
         if (error) throw error;
-        setClientes(prev => {
-          const map = new Map(prev.map(c => [String(c.id), c]));
-          const c = map.get(String(clienteEditando.id));
-          if(c) map.set(String(clienteEditando.id), { ...c, nome: nome.trim(), telefone: telefone.trim() || null, email: email.trim() || null, data_nascimento: data_nascimento || null });
-          const novos = Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
-          setClientesFiltrados(novos);
-          return novos;
-        });
       } else {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from("clientes")
           .insert([{
             nome: nome.trim(),
             telefone: telefone.trim() || null,
             email: email.trim() || null,
             data_nascimento: data_nascimento || null,
-          }])
-          .select()
-          .single();
+          }]);
         if (error) throw error;
-        
-        setClientes(prev => {
-           const map = new Map(prev.map(c => [String(c.id), c]));
-           map.set(String(data.id), data);
-           const novos = Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
-           setClientesFiltrados(novos);
-           return novos;
-        });
       }
       setModalClienteFormAberto(false);
       setModalClientesAberto(true);
@@ -1507,11 +1394,6 @@ export default function Dashboard() {
     try {
       const { error } = await supabase.from("clientes").delete().eq("id", id);
       if (error) throw error;
-      setClientes(prev => {
-        const novos = prev.filter(c => String(c.id) !== String(id));
-        setClientesFiltrados(novos);
-        return novos;
-      });
     } catch (err: any) {
       alert("Erro ao excluir cliente: " + err.message);
     } finally {
@@ -1541,13 +1423,6 @@ export default function Dashboard() {
             .eq("id", insumo.id);
 
           if (errEstoque) throw errEstoque;
-
-          setInsumos((prev) => {
-            const map = new Map(prev.map(i => [String(i.id), i]));
-            const i = map.get(String(insumo.id));
-            if(i) map.set(String(insumo.id), { ...i, estoque: novoEstoque });
-            return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
-          });
         }
       }
 
@@ -1557,12 +1432,6 @@ export default function Dashboard() {
         .eq("id", mesa.id);
 
       if (errDelete) throw errDelete;
-
-      setMesas((prev) => prev.filter((m) => String(m.id) !== String(mesa.id)));
-      if (String(mesaSelecionada?.id) === String(mesa.id)) {
-        setFichaAberta(false);
-        setMesaSelecionada(null);
-      }
 
       alert("Mesa excluída e itens devolvidos ao estoque com sucesso!");
     } catch (err: any) {
@@ -1663,7 +1532,9 @@ export default function Dashboard() {
               <Image src="/logo.png" alt="Logo" fill className="object-contain p-1" />
             </div>
             <div>
-              <h1 className="text-lg md:text-xl font-bold text-yellow-500 italic uppercase leading-none">Bar da Praça</h1>
+              <h1 className="text-lg md:text-xl font-bold text-yellow-500 italic uppercase leading-none">
+                Bar da Praça <span className="text-[10px] text-zinc-500 ml-1">v3.0</span>
+              </h1>
               <p className="text-[10px] md:text-xs text-zinc-400 mt-1">Bem-vindo, {usuario.nome}</p>
             </div>
           </div>
@@ -1714,7 +1585,7 @@ export default function Dashboard() {
                     <span className="text-3xl md:text-4xl font-black italic text-yellow-500 leading-none">{String(mesa.numero).padStart(2, "0")}</span>
                     <div className="flex flex-col md:flex-row items-end md:items-start gap-1 md:gap-2">
                       <span className="bg-yellow-500 text-zinc-950 text-[9px] md:text-[10px] font-black px-2 py-1 rounded-md uppercase text-right md:text-left truncate max-w-[80px] md:max-w-[120px]">{mesa.cliente}</span>
-                      <button onClick={(e) => { e.stopPropagation(); excluirMesa(mesa); }} className="text-red-500 hover:text-red-400 p-1 bg-zinc-900 rounded-full transition-colors" title="Excluir mesa">🗑️</button>
+                      <button onClick={(e) => { e.stopPropagation(); excluirMesa(mesa); }} disabled={processando} className="text-red-500 hover:text-red-400 p-1 bg-zinc-900 rounded-full transition-colors disabled:opacity-50" title="Excluir mesa">🗑️</button>
                     </div>
                   </div>
                   <div className="space-y-2 mt-2">
@@ -2237,6 +2108,7 @@ export default function Dashboard() {
               <p className="text-zinc-400 text-sm">Total da conta: <span className="font-bold text-yellow-500 text-xl md:text-2xl">R$ {Number(mesaSelecionada.total).toFixed(2)}</span></p>
             </div>
 
+            {/* Vincular Cliente */}
             <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 mb-4">
               <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block mb-2">Vincular Cliente (opcional)</label>
               <div className="relative flex gap-2">
