@@ -303,7 +303,6 @@ export default function Dashboard() {
     };
   }, [usuario]);
 
-  // Sincronização Dinâmica (mantém os modais abertos atualizados com as mudanças do Realtime)
   useEffect(() => {
     if (mesaSelecionada) {
       const atualizada = mesas.find(m => String(m.id) === String(mesaSelecionada.id));
@@ -411,10 +410,10 @@ export default function Dashboard() {
 
   function adicionarItem(produto: any) {
     setPedidoAtual((prev) => {
-      const existente = prev.find((i) => i.id === produto.id);
+      const existente = prev.find((i) => String(i.id) === String(produto.id));
       if (existente) {
         return prev.map((i) =>
-          i.id === produto.id ? { ...i, quantidade: i.quantidade + 1 } : i
+          String(i.id) === String(produto.id) ? { ...i, quantidade: i.quantidade + 1 } : i
         );
       }
       return [...prev, { ...produto, quantidade: 1 }];
@@ -423,13 +422,13 @@ export default function Dashboard() {
 
   function removerItem(id: string) {
     setPedidoAtual((prev) => {
-      const existente = prev.find((i) => i.id === id);
+      const existente = prev.find((i) => String(i.id) === String(id));
       if (existente && existente.quantidade > 1) {
         return prev.map((i) =>
-          i.id === id ? { ...i, quantidade: i.quantidade - 1 } : i
+          String(i.id) === String(id) ? { ...i, quantidade: i.quantidade - 1 } : i
         );
       }
-      return prev.filter((i) => i.id !== id);
+      return prev.filter((i) => String(i.id) !== String(id));
     });
   }
 
@@ -439,11 +438,11 @@ export default function Dashboard() {
 
     let faltaEstoque = false;
     for (const item of pedidoAtual) {
-      const produto = produtos.find((p) => p.id === item.id);
+      const produto = produtos.find((p) => String(p.id) === String(item.id));
       if (!produto || !produto.receita || produto.receita.length === 0) continue;
 
       for (const ing of produto.receita) {
-        const insumo = insumos.find((i) => i.id === ing.insumo_id);
+        const insumo = insumos.find((i) => String(i.id) === String(ing.insumo_id));
         if (!insumo) continue;
         const qtdNecessaria = parseFloat(ing.qtd) * item.quantidade;
         if (insumo.estoque < qtdNecessaria) {
@@ -1268,15 +1267,13 @@ export default function Dashboard() {
         return;
       }
 
-      const { data: novoGarcom, error: perfilError } = await supabase
+      const { error: perfilError } = await supabase
         .from("usuarios")
         .insert([{
           nome: nome.trim(),
           email: email.trim().toLowerCase(),
           role: "colaborador",
-        }])
-        .select()
-        .single();
+        }]);
 
       if (perfilError) {
         alert("Erro ao criar perfil de usuário: " + perfilError.message);
@@ -1284,11 +1281,6 @@ export default function Dashboard() {
         return;
       }
 
-      setGarcons(prev => {
-        const map = new Map(prev.map(g => [String(g.id), g]));
-        map.set(String(novoGarcom.id), novoGarcom);
-        return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
-      });
       alert("Garçom cadastrado com sucesso!");
       setModalGarcomFormAberto(false);
       setModalGarcomAberto(true);
@@ -1306,7 +1298,6 @@ export default function Dashboard() {
     try {
       const { error } = await supabase.from("usuarios").delete().eq("id", id);
       if (error) throw error;
-      setGarcons(prev => prev.filter(g => String(g.id) !== String(id)));
       alert("Garçom removido com sucesso!");
     } catch (err: any) {
       alert("Erro ao excluir garçom: " + err.message);
@@ -1532,7 +1523,7 @@ export default function Dashboard() {
             </div>
             <div>
               <h1 className="text-lg md:text-xl font-bold text-yellow-500 italic uppercase leading-none">
-                Bar da Praça
+                Bar da Praça <span className="text-[10px] text-zinc-500 ml-1">v4.0</span>
               </h1>
               <p className="text-[10px] md:text-xs text-zinc-400 mt-1">Bem-vindo, {usuario.nome}</p>
             </div>
