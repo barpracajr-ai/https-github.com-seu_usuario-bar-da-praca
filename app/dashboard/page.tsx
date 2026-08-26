@@ -150,44 +150,61 @@ export default function Dashboard() {
       router.push("/");
       return;
     }
-    try {
-      setUsuario(JSON.parse(user));
-    } catch (e) {
-      localStorage.removeItem("usuario");
-      router.push("/");
-      return;
-    }
+    setUsuario(JSON.parse(user));
     carregarDados();
   }, []);
 
   async function carregarDados() {
     try {
-      const { data: mesasData, error: errMesas } = await supabase.from("mesas").select("*").eq("status", "ocupada").order("numero", { ascending: true });
+      const { data: mesasData, error: errMesas } = await supabase
+        .from("mesas")
+        .select("*")
+        .eq("status", "ocupada")
+        .order("numero", { ascending: true });
       if (errMesas) throw new Error(errMesas.message);
       setMesas(mesasData || []);
 
-      const { data: produtosData, error: errProdutos } = await supabase.from("produtos").select("*").order("nome");
+      const { data: produtosData, error: errProdutos } = await supabase
+        .from("produtos")
+        .select("*")
+        .order("nome");
       if (errProdutos) throw new Error(errProdutos.message);
       setProdutos(produtosData || []);
 
-      const { data: insumosData, error: errInsumos } = await supabase.from("insumos").select("*").order("nome");
+      const { data: insumosData, error: errInsumos } = await supabase
+        .from("insumos")
+        .select("*")
+        .order("nome");
       if (errInsumos) throw new Error(errInsumos.message);
       setInsumos(insumosData || []);
 
-      const { data: cozinhaData, error: errCozinha } = await supabase.from("pedidos_cozinha").select("*").order("created_at", { ascending: true });
+      const { data: cozinhaData, error: errCozinha } = await supabase
+        .from("pedidos_cozinha")
+        .select("*")
+        .order("created_at", { ascending: true });
       if (errCozinha) throw new Error(errCozinha.message);
       setPedidosCozinha(cozinhaData || []);
 
-      const { data: fiadosData, error: errFiados } = await supabase.from("fiados").select("*").order("data_criacao", { ascending: false });
+      const { data: fiadosData, error: errFiados } = await supabase
+        .from("fiados")
+        .select("*")
+        .order("data_criacao", { ascending: false });
       if (errFiados) throw new Error(errFiados.message);
       setFiados(fiadosData || []);
 
-      const { data: clientesData, error: errClientes } = await supabase.from("clientes").select("*").order("nome", { ascending: true });
+      const { data: clientesData, error: errClientes } = await supabase
+        .from("clientes")
+        .select("*")
+        .order("nome", { ascending: true });
       if (errClientes) throw new Error(errClientes.message);
       setClientes(clientesData || []);
       setClientesFiltrados(clientesData || []);
 
-      const { data: garconsData, error: errGarcons } = await supabase.from("usuarios").select("*").eq("role", "colaborador").order("nome", { ascending: true });
+      const { data: garconsData, error: errGarcons } = await supabase
+        .from("usuarios")
+        .select("*")
+        .eq("role", "colaborador")
+        .order("nome", { ascending: true });
       if (errGarcons) throw new Error(errGarcons.message);
       setGarcons(garconsData || []);
 
@@ -198,7 +215,7 @@ export default function Dashboard() {
     }
   }
 
-  // ========== REALTIME SSOT (Fonte Única de Verdade) ==========
+  // ========== REALTIME SSOT (Fonte Única de Verdade - Sem Conflito) ==========
   useEffect(() => {
     if (!usuario) return;
 
@@ -216,7 +233,7 @@ export default function Dashboard() {
             } else if (payload.eventType === 'DELETE') {
               map.delete(String(payload.old.id));
             }
-            return Array.from(map.values()).sort((a, b) => (Number(a.numero) || 0) - (Number(b.numero) || 0));
+            return Array.from(map.values()).sort((a, b) => a.numero - b.numero);
           });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "pedidos_cozinha" }, (payload) => {
@@ -241,7 +258,7 @@ export default function Dashboard() {
             } else if (payload.eventType === 'DELETE') {
               map.delete(String(payload.old.id));
             }
-            return Array.from(map.values()).sort((a, b) => new Date(b.data_criacao || 0).getTime() - new Date(a.data_criacao || 0).getTime());
+            return Array.from(map.values()).sort((a, b) => new Date(b.data_criacao).getTime() - new Date(a.data_criacao).getTime());
           });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "insumos" }, (payload) => {
@@ -252,7 +269,7 @@ export default function Dashboard() {
             } else if (payload.eventType === 'DELETE') {
               map.delete(String(payload.old.id));
             }
-            return Array.from(map.values()).sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || "")));
+            return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
           });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "produtos" }, (payload) => {
@@ -263,7 +280,7 @@ export default function Dashboard() {
             } else if (payload.eventType === 'DELETE') {
               map.delete(String(payload.old.id));
             }
-            return Array.from(map.values()).sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || "")));
+            return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
           });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "clientes" }, (payload) => {
@@ -274,7 +291,7 @@ export default function Dashboard() {
             } else if (payload.eventType === 'DELETE') {
               map.delete(String(payload.old.id));
             }
-            const novos = Array.from(map.values()).sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || "")));
+            const novos = Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
             setClientesFiltrados(novos);
             return novos;
           });
@@ -302,7 +319,7 @@ export default function Dashboard() {
           const itensDesmembrados: any[] = [];
           if (atualizado.itens) {
             atualizado.itens.forEach((item: any) => {
-              for (let i = 0; i < (Number(item.quantidade) || 1); i++) {
+              for (let i = 0; i < (item.quantidade || 1); i++) {
                 itensDesmembrados.push({ ...item, quantidade: 1, _id: Date.now() + Math.random() });
               }
             });
@@ -320,13 +337,13 @@ export default function Dashboard() {
       setClientesFiltrados(clientes);
     } else {
       const filtrados = clientes.filter(c =>
-        String(c.nome || "").toLowerCase().includes(buscaCliente.toLowerCase())
+        c.nome.toLowerCase().includes(buscaCliente.toLowerCase())
       );
       setClientesFiltrados(filtrados);
     }
   }, [buscaCliente, clientes]);
 
-  // ========== FUNÇÕES DE NEGÓCIO RESTAURADAS ==========
+  // ========== FUNÇÕES DE NEGÓCIO RESTAURADAS (Somente DB) ==========
 
   async function abrirNovaMesa(e: React.FormEvent) {
     e.preventDefault();
@@ -343,19 +360,30 @@ export default function Dashboard() {
 
     setProcessando(true);
     try {
-      const { data: mesaExistente, error: errBusca } = await supabase.from("mesas").select("*").eq("numero", num).maybeSingle();
+      const { data: mesaExistente, error: errBusca } = await supabase
+        .from("mesas")
+        .select("*")
+        .eq("numero", num)
+        .maybeSingle();
+
       if (errBusca) throw errBusca;
 
       if (mesaExistente) {
         if (mesaExistente.status === "ocupada") {
           alert("Esta mesa já está ocupada.");
-          setProcessando(false);
           return;
         }
-        const { error: errUpdate } = await supabase.from("mesas").update({ status: "ocupada", cliente: clienteMesa, total: 0, itens: [] }).eq("id", mesaExistente.id);
+        const { error: errUpdate } = await supabase
+          .from("mesas")
+          .update({ status: "ocupada", cliente: clienteMesa, total: 0, itens: [] })
+          .eq("id", mesaExistente.id);
+
         if (errUpdate) throw errUpdate;
       } else {
-        const { error: errInsert } = await supabase.from("mesas").insert([{ numero: num, status: "ocupada", cliente: clienteMesa, total: 0, itens: [] }]);
+        const { error: errInsert } = await supabase
+          .from("mesas")
+          .insert([{ numero: num, status: "ocupada", cliente: clienteMesa, total: 0, itens: [] }]);
+
         if (errInsert) throw errInsert;
       }
       
@@ -371,7 +399,7 @@ export default function Dashboard() {
 
   function abrirFicha(mesa: any) {
     if (mesa.status === "livre") {
-      setNumeroMesa(String(mesa.numero || ""));
+      setNumeroMesa(mesa.numero.toString());
       setClienteMesa("");
       setModalAberto(true);
       return;
@@ -385,7 +413,7 @@ export default function Dashboard() {
       const existente = prev.find((i) => String(i.id) === String(produto.id));
       if (existente) {
         return prev.map((i) =>
-          String(i.id) === String(produto.id) ? { ...i, quantidade: Number(i.quantidade || 0) + 1 } : i
+          String(i.id) === String(produto.id) ? { ...i, quantidade: i.quantidade + 1 } : i
         );
       }
       return [...prev, { ...produto, quantidade: 1 }];
@@ -395,9 +423,9 @@ export default function Dashboard() {
   function removerItem(id: string) {
     setPedidoAtual((prev) => {
       const existente = prev.find((i) => String(i.id) === String(id));
-      if (existente && Number(existente.quantidade || 0) > 1) {
+      if (existente && existente.quantidade > 1) {
         return prev.map((i) =>
-          String(i.id) === String(id) ? { ...i, quantidade: Number(i.quantidade || 0) - 1 } : i
+          String(i.id) === String(id) ? { ...i, quantidade: i.quantidade - 1 } : i
         );
       }
       return prev.filter((i) => String(i.id) !== String(id));
@@ -416,8 +444,8 @@ export default function Dashboard() {
       for (const ing of produto.receita) {
         const insumo = insumos.find((i) => String(i.id) === String(ing.insumo_id));
         if (!insumo) continue;
-        const qtdNecessaria = parseFloat(ing.qtd || 0) * Number(item.quantidade || 0);
-        if (Number(insumo.estoque || 0) < qtdNecessaria) {
+        const qtdNecessaria = parseFloat(ing.qtd) * item.quantidade;
+        if (insumo.estoque < qtdNecessaria) {
           faltaEstoque = true;
           alert(`⚠️ Estoque insuficiente para "${produto.nome}".\nInsumo: ${insumo.nome} (disponível: ${insumo.estoque}, necessário: ${qtdNecessaria})\nO pedido será enviado mesmo assim.`);
         }
@@ -431,31 +459,38 @@ export default function Dashboard() {
 
     setProcessando(true);
     try {
-      const totalRemessa = pedidoAtual.reduce((acc, i) => acc + Number(i.preco || 0) * Number(i.quantidade || 0), 0);
-      const totalNovo = Number(mesaSelecionada.total || 0) + totalRemessa;
+      const totalRemessa = pedidoAtual.reduce((acc, i) => acc + i.preco * i.quantidade, 0);
+      const totalNovo = Number(mesaSelecionada.total) + totalRemessa;
       const itensAntigos = mesaSelecionada.itens || [];
       let itensAtualizados = [...itensAntigos];
 
       pedidoAtual.forEach((itemNovo: any) => {
         const index = itensAtualizados.findIndex((i: any) => String(i.id) === String(itemNovo.id));
         if (index >= 0) {
-          itensAtualizados[index].quantidade = Number(itensAtualizados[index].quantidade || 0) + Number(itemNovo.quantidade || 0);
+          itensAtualizados[index].quantidade += itemNovo.quantidade;
         } else {
           itensAtualizados.push({ ...itemNovo });
         }
       });
 
       const pedidoCozinha = {
-        mesa: String(mesaSelecionada.numero || ""),
+        mesa: mesaSelecionada.numero.toString(),
         cliente: mesaSelecionada.cliente,
         itens: pedidoAtual,
         hora: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
       };
 
-      const { error: errMesa } = await supabase.from("mesas").update({ total: totalNovo, itens: itensAtualizados }).eq("id", mesaSelecionada.id);
+      const { error: errMesa } = await supabase
+        .from("mesas")
+        .update({ total: totalNovo, itens: itensAtualizados })
+        .eq("id", mesaSelecionada.id);
+
       if (errMesa) throw errMesa;
 
-      const { error: errCozinha } = await supabase.from("pedidos_cozinha").insert([pedidoCozinha]);
+      const { error: errCozinha } = await supabase
+        .from("pedidos_cozinha")
+        .insert([pedidoCozinha]);
+
       if (errCozinha) throw errCozinha;
 
       for (const item of pedidoAtual) {
@@ -465,10 +500,14 @@ export default function Dashboard() {
         for (const ing of produto.receita) {
           const insumo = insumos.find((i) => String(i.id) === String(ing.insumo_id));
           if (!insumo) continue;
-          const qtdUsada = parseFloat(ing.qtd || 0) * Number(item.quantidade || 0);
-          const novoEstoque = Number(insumo.estoque || 0) - qtdUsada;
+          const qtdUsada = parseFloat(ing.qtd) * item.quantidade;
+          const novoEstoque = insumo.estoque - qtdUsada;
 
-          const { error: errEstoque } = await supabase.from("insumos").update({ estoque: novoEstoque }).eq("id", insumo.id);
+          const { error: errEstoque } = await supabase
+            .from("insumos")
+            .update({ estoque: novoEstoque })
+            .eq("id", insumo.id);
+
           if (errEstoque) throw errEstoque;
         }
       }
@@ -500,7 +539,7 @@ export default function Dashboard() {
     setMesaSelecionada(mesa);
     setPagamentos([{ id: 1, metodo: "dinheiro", valor: 0 }]);
     setTotalPago(0);
-    setSaldoRestante(Number(mesa.total || 0));
+    setSaldoRestante(Number(mesa.total));
     setTroco(0);
     setFiadoAutomatico(false);
     setClienteNomeFiado(mesa.cliente || "Consumidor");
@@ -531,13 +570,13 @@ export default function Dashboard() {
       alert("Deve haver pelo menos uma forma de pagamento.");
       return;
     }
-    setPagamentos(pagamentos.filter(p => String(p.id) !== String(id)));
-    recalcularTotais(pagamentos.filter(p => String(p.id) !== String(id)));
+    setPagamentos(pagamentos.filter(p => p.id !== id));
+    recalcularTotais(pagamentos.filter(p => p.id !== id));
   }
 
   function atualizarValorPagamento(id: number, valor: number) {
     const novosPagamentos = pagamentos.map(p =>
-      String(p.id) === String(id) ? { ...p, valor: Math.max(0, valor) } : p
+      p.id === id ? { ...p, valor: Math.max(0, valor) } : p
     );
     setPagamentos(novosPagamentos);
     recalcularTotais(novosPagamentos);
@@ -545,13 +584,13 @@ export default function Dashboard() {
 
   function atualizarMetodoPagamento(id: number, metodo: string) {
     setPagamentos(pagamentos.map(p =>
-      String(p.id) === String(id) ? { ...p, metodo } : p
+      p.id === id ? { ...p, metodo } : p
     ));
   }
 
   function recalcularTotais(pagamentosAtuais: any[]) {
-    const soma = pagamentosAtuais.reduce((acc, p) => acc + (Number(p.valor) || 0), 0);
-    const totalMesa = Number(mesaSelecionada?.total || 0);
+    const soma = pagamentosAtuais.reduce((acc, p) => acc + (p.valor || 0), 0);
+    const totalMesa = Number(mesaSelecionada?.total) || 0;
     setTotalPago(soma);
     if (soma >= totalMesa) {
       setSaldoRestante(0);
@@ -563,7 +602,7 @@ export default function Dashboard() {
   }
 
   function dividirIgualmente() {
-    const total = Number(mesaSelecionada?.total || 0);
+    const total = Number(mesaSelecionada?.total) || 0;
     if (numeroPessoas <= 0) {
       alert("Número de pessoas inválido.");
       return;
@@ -593,15 +632,15 @@ export default function Dashboard() {
     if (!mesaSelecionada) return;
     if (processando) return;
 
-    const pagamento = pagamentos.find(p => String(p.id) === String(id));
+    const pagamento = pagamentos.find(p => p.id === id);
     if (!pagamento) return;
-    const valorPago = Number(pagamento.valor || 0);
+    const valorPago = pagamento.valor;
     if (valorPago <= 0) {
       alert("Informe um valor para este pagamento.");
       return;
     }
 
-    const totalMesa = Number(mesaSelecionada.total || 0);
+    const totalMesa = Number(mesaSelecionada.total);
     if (valorPago > totalMesa) {
       alert("O valor não pode ser maior que o total da mesa.");
       return;
@@ -613,7 +652,9 @@ export default function Dashboard() {
       const custoEstimado = valorPago * 0.4;
       const lucroEstimado = valorPago * 0.6;
 
-      const { error: errVenda } = await supabase.from("vendas").insert([{
+      const { error: errVenda } = await supabase
+        .from("vendas")
+        .insert([{
           total_venda: valorPago,
           custo_total: custoEstimado,
           lucro_total: lucroEstimado,
@@ -634,10 +675,14 @@ export default function Dashboard() {
         setCheckoutAberto(false);
         alert(`Pagamento de R$ ${valorPago.toFixed(2)} realizado. Mesa encerrada.`);
       } else {
-        const { error: errUpdate } = await supabase.from("mesas").update({ total: novoTotal }).eq("id", mesaSelecionada.id);
+        const { error: errUpdate } = await supabase
+          .from("mesas")
+          .update({ total: novoTotal })
+          .eq("id", mesaSelecionada.id);
+
         if (errUpdate) throw errUpdate;
 
-        const novosPagamentos = pagamentos.filter(p => String(p.id) !== String(id));
+        const novosPagamentos = pagamentos.filter(p => p.id !== id);
         setPagamentos(novosPagamentos);
         recalcularTotais(novosPagamentos);
         alert(`Pagamento de R$ ${valorPago.toFixed(2)} realizado. Saldo restante: R$ ${novoTotal.toFixed(2)}`);
@@ -658,12 +703,16 @@ export default function Dashboard() {
     }
     setProcessando(true);
     try {
-      const { data, error } = await supabase.from("clientes").insert([{
+      const { data, error } = await supabase
+        .from("clientes")
+        .insert([{
           nome: nome.trim(),
           telefone: telefone.trim() || null,
           email: email.trim() || null,
           data_nascimento: data_nascimento || null,
-        }]).select().single();
+        }])
+        .select()
+        .single();
 
       if (error) throw error;
 
@@ -683,7 +732,7 @@ export default function Dashboard() {
     if (!mesaSelecionada) return;
     if (processando) return;
 
-    const totalMesa = Number(mesaSelecionada.total || 0);
+    const totalMesa = Number(mesaSelecionada.total);
     const somaPago = totalPago;
 
     if (totalMesa === 0) {
@@ -697,7 +746,7 @@ export default function Dashboard() {
       return;
     }
 
-    const temPagamento = pagamentos.some(p => Number(p.valor || 0) > 0);
+    const temPagamento = pagamentos.some(p => p.valor > 0);
     if (!temPagamento && !fiadoAutomatico) {
       alert("Informe pelo menos um valor de pagamento ou marque a opção de fiado.");
       return;
@@ -722,7 +771,9 @@ export default function Dashboard() {
         const lucroEstimado = somaPago * 0.6;
         const clienteId = clienteSelecionadoId || null;
 
-        const { error: errVenda } = await supabase.from("vendas").insert([{
+        const { error: errVenda } = await supabase
+          .from("vendas")
+          .insert([{
             total_venda: somaPago,
             custo_total: custoEstimado,
             lucro_total: lucroEstimado,
@@ -738,23 +789,32 @@ export default function Dashboard() {
 
       if (valorFiado > 0.01) {
         const nomeFiado = clienteNomeFiado.trim().toUpperCase();
-        const { data: fiadoExistente } = await supabase.from("fiados").select("*").ilike("cliente_nome", nomeFiado).maybeSingle();
+        const { data: fiadoExistente } = await supabase
+          .from("fiados")
+          .select("*")
+          .ilike("cliente_nome", nomeFiado)
+          .maybeSingle();
 
         if (fiadoExistente) {
-          const novoTotal = Number(fiadoExistente.total || 0) + valorFiado;
+          const novoTotal = Number(fiadoExistente.total) + valorFiado;
           let itensAtuais = fiadoExistente.itens || [];
           itensVenda.forEach((itemNovo: any) => {
             const existente = itensAtuais.find((i: any) => String(i.id) === String(itemNovo.id));
             if (existente) {
-              existente.quantidade = Number(existente.quantidade || 0) + Number(itemNovo.quantidade || 0);
+              existente.quantidade += itemNovo.quantidade;
             } else {
               itensAtuais.push({ ...itemNovo });
             }
           });
-          const { error: errUpFiado } = await supabase.from("fiados").update({ total: novoTotal, itens: itensAtuais }).eq("id", fiadoExistente.id);
+          const { error: errUpFiado } = await supabase
+            .from("fiados")
+            .update({ total: novoTotal, itens: itensAtuais })
+            .eq("id", fiadoExistente.id);
           if (errUpFiado) throw errUpFiado;
         } else {
-          const { error: errInsert } = await supabase.from("fiados").insert([{
+          const { error: errInsert } = await supabase
+            .from("fiados")
+            .insert([{
               cliente_nome: nomeFiado,
               total: valorFiado,
               itens: itensVenda,
@@ -784,7 +844,7 @@ export default function Dashboard() {
     const itensDesmembrados: any[] = [];
     if (fiado.itens && Array.isArray(fiado.itens)) {
       fiado.itens.forEach((item: any) => {
-        for (let i = 0; i < (Number(item.quantidade) || 1); i++) {
+        for (let i = 0; i < (item.quantidade || 1); i++) {
           itensDesmembrados.push({ ...item, quantidade: 1, _id: Date.now() + Math.random() });
         }
       });
@@ -817,7 +877,7 @@ export default function Dashboard() {
     const item = fiadoSelecionado.itensDesmembrados[idx];
     if (!item) return;
 
-    if (!confirm(`Remover "${item.nome}" (R$ ${Number(item.preco || 0).toFixed(2)}) do fiado?`)) return;
+    if (!confirm(`Remover "${item.nome}" (R$ ${item.preco.toFixed(2)}) do fiado?`)) return;
     if (processando) return;
 
     setProcessando(true);
@@ -827,16 +887,19 @@ export default function Dashboard() {
       novosDesmembrados.forEach((i: any) => {
         const existente = itensAgrupados.find((x: any) => String(x.id) === String(i.id));
         if (existente) {
-          existente.quantidade = Number(existente.quantidade || 0) + 1;
+          existente.quantidade += 1;
         } else {
           itensAgrupados.push({ ...i, quantidade: 1 });
         }
       });
-      const novoTotal = itensAgrupados.reduce((acc: any, i: any) => acc + (Number(i.preco || 0) * Number(i.quantidade || 0)), 0);
+      const novoTotal = itensAgrupados.reduce((acc: any, i: any) => acc + (i.preco * i.quantidade), 0);
 
-      const { error } = await supabase.from("fiados").update({ itens: itensAgrupados, total: novoTotal }).eq("id", fiadoSelecionado.id);
+      const { error } = await supabase
+        .from("fiados")
+        .update({ itens: itensAgrupados, total: novoTotal })
+        .eq("id", fiadoSelecionado.id);
+
       if (error) throw error;
-      
       setItensSelecionadosFiado([]);
       alert("Item removido do fiado.");
     } catch (err: any) {
@@ -856,20 +919,20 @@ export default function Dashboard() {
       alert("Deve haver pelo menos uma forma de pagamento.");
       return;
     }
-    setPagamentosFiado(pagamentosFiado.filter(p => String(p.id) !== String(id)));
+    setPagamentosFiado(pagamentosFiado.filter(p => p.id !== id));
   }
 
   function atualizarValorPagamentoFiado(id: number, valor: number) {
     setPagamentosFiado(prev => prev.map(p =>
-      String(p.id) === String(id) ? { ...p, valor: Math.max(0, valor) } : p
+      p.id === id ? { ...p, valor: Math.max(0, valor) } : p
     ));
-    const soma = pagamentosFiado.reduce((acc, p) => acc + (Number(p.valor) || 0), 0);
+    const soma = pagamentosFiado.reduce((acc, p) => acc + (p.valor || 0), 0);
     setValorPagamentoFiado(soma);
   }
 
   function atualizarMetodoPagamentoFiado(id: number, metodo: string) {
     setPagamentosFiado(prev => prev.map(p =>
-      String(p.id) === String(id) ? { ...p, metodo } : p
+      p.id === id ? { ...p, metodo } : p
     ));
   }
 
@@ -877,8 +940,8 @@ export default function Dashboard() {
     if (!fiadoSelecionado) return;
     if (processando) return;
 
-    const totalPendente = Number(fiadoSelecionado.total || 0);
-    const somaPago = pagamentosFiado.reduce((acc, p) => acc + (Number(p.valor) || 0), 0);
+    const totalPendente = Number(fiadoSelecionado.total);
+    const somaPago = pagamentosFiado.reduce((acc, p) => acc + (p.valor || 0), 0);
 
     if (somaPago === 0) {
       alert("Informe o valor a ser pago.");
@@ -895,7 +958,9 @@ export default function Dashboard() {
       const custoEstimado = somaPago * 0.4;
       const lucroEstimado = somaPago * 0.6;
 
-      const { error: errVenda } = await supabase.from("vendas").insert([{
+      const { error: errVenda } = await supabase
+        .from("vendas")
+        .insert([{
           total_venda: somaPago,
           custo_total: custoEstimado,
           lucro_total: lucroEstimado,
@@ -913,7 +978,10 @@ export default function Dashboard() {
         const { error: errDel } = await supabase.from("fiados").delete().eq("id", fiadoSelecionado.id);
         if (errDel) throw errDel;
       } else {
-        const { error: errUpdate } = await supabase.from("fiados").update({ total: novoTotal }).eq("id", fiadoSelecionado.id);
+        const { error: errUpdate } = await supabase
+          .from("fiados")
+          .update({ total: novoTotal })
+          .eq("id", fiadoSelecionado.id);
         if (errUpdate) throw errUpdate;
       }
 
@@ -951,7 +1019,7 @@ export default function Dashboard() {
       mesa: mesa.numero,
       cliente: mesa.cliente,
       itens: mesa.itens || [],
-      total: Number(mesa.total || 0),
+      total: Number(mesa.total),
       pagamentos: pagamentosRealizados || [],
     });
     setComandaAberta(true);
@@ -975,8 +1043,8 @@ export default function Dashboard() {
       setFormInsumo({
         nome: insumo.nome,
         unidade: insumo.unidade || "UN",
-        estoque: String(insumo.estoque || ""),
-        custo_unidade: String(insumo.custo_unidade || ""),
+        estoque: String(insumo.estoque),
+        custo_unidade: String(insumo.custo_unidade),
       });
     } else {
       setInsumoEditando(null);
@@ -998,10 +1066,15 @@ export default function Dashboard() {
     setProcessando(true);
     try {
       if (insumoEditando) {
-        const { error } = await supabase.from("insumos").update({ nome, unidade, estoque: estoqueNum, custo_unidade: custoNum }).eq("id", insumoEditando.id);
+        const { error } = await supabase
+          .from("insumos")
+          .update({ nome, unidade, estoque: estoqueNum, custo_unidade: custoNum })
+          .eq("id", insumoEditando.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("insumos").insert([{ nome, unidade, estoque: estoqueNum, custo_unidade: custoNum }]);
+        const { error } = await supabase
+          .from("insumos")
+          .insert([{ nome, unidade, estoque: estoqueNum, custo_unidade: custoNum }]);
         if (error) throw error;
       }
       setModalInsumoAberto(false);
@@ -1047,7 +1120,7 @@ export default function Dashboard() {
     setFormProduto({
       nome: produto.nome,
       categoria: produto.categoria || "Bebidas",
-      preco: String(produto.preco || ""),
+      preco: String(produto.preco),
     });
     setReceitaTemp(produto.receita || []);
     setModalProdutoAberto(true);
@@ -1071,7 +1144,9 @@ export default function Dashboard() {
       if (!confirm(`O insumo "${insumo.nome}" já está na receita. Deseja adicionar mais?`)) return;
       setReceitaTemp(prev =>
         prev.map(r =>
-          String(r.insumo_id) === String(insumo.id) ? { ...r, qtd: Number(r.qtd || 0) + qtd } : r
+          String(r.insumo_id) === String(insumo.id)
+            ? { ...r, qtd: r.qtd + qtd }
+            : r
         )
       );
     } else {
@@ -1111,10 +1186,15 @@ export default function Dashboard() {
     setProcessando(true);
     try {
       if (produtoEditando) {
-        const { error } = await supabase.from("produtos").update(dados).eq("id", produtoEditando.id);
+        const { error } = await supabase
+          .from("produtos")
+          .update(dados)
+          .eq("id", produtoEditando.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("produtos").insert([dados]);
+        const { error } = await supabase
+          .from("produtos")
+          .insert([dados]);
         if (error) throw error;
       }
       setModalProdutoAberto(false);
@@ -1172,7 +1252,7 @@ export default function Dashboard() {
         return;
       }
 
-      const { error: authError } = await supabase.auth.signUp({
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password: senha,
       });
@@ -1187,7 +1267,9 @@ export default function Dashboard() {
         return;
       }
 
-      const { error: perfilError } = await supabase.from("usuarios").insert([{
+      const { error: perfilError } = await supabase
+        .from("usuarios")
+        .insert([{
           nome: nome.trim(),
           email: email.trim().toLowerCase(),
           role: "colaborador",
@@ -1262,15 +1344,20 @@ export default function Dashboard() {
     setProcessando(true);
     try {
       if (clienteEditando) {
-        const { error } = await supabase.from("clientes").update({
+        const { error } = await supabase
+          .from("clientes")
+          .update({
             nome: nome.trim(),
             telefone: telefone.trim() || null,
             email: email.trim() || null,
             data_nascimento: data_nascimento || null,
-          }).eq("id", clienteEditando.id);
+          })
+          .eq("id", clienteEditando.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("clientes").insert([{
+        const { error } = await supabase
+          .from("clientes")
+          .insert([{
             nome: nome.trim(),
             telefone: telefone.trim() || null,
             email: email.trim() || null,
@@ -1317,15 +1404,23 @@ export default function Dashboard() {
         for (const ing of produto.receita) {
           const insumo = insumos.find((i) => String(i.id) === String(ing.insumo_id));
           if (!insumo) continue;
-          const qtdDevolver = parseFloat(ing.qtd || 0) * Number(item.quantidade || 0);
-          const novoEstoque = Number(insumo.estoque || 0) + qtdDevolver;
+          const qtdDevolver = parseFloat(ing.qtd) * item.quantidade;
+          const novoEstoque = insumo.estoque + qtdDevolver;
 
-          const { error: errEstoque } = await supabase.from("insumos").update({ estoque: novoEstoque }).eq("id", insumo.id);
+          const { error: errEstoque } = await supabase
+            .from("insumos")
+            .update({ estoque: novoEstoque })
+            .eq("id", insumo.id);
+
           if (errEstoque) throw errEstoque;
         }
       }
 
-      const { error: errDelete } = await supabase.from("mesas").delete().eq("id", mesa.id);
+      const { error: errDelete } = await supabase
+        .from("mesas")
+        .delete()
+        .eq("id", mesa.id);
+
       if (errDelete) throw errDelete;
 
       alert("Mesa excluída e itens devolvidos ao estoque com sucesso!");
@@ -1336,18 +1431,52 @@ export default function Dashboard() {
     }
   }
 
+  const enviarWhatsAppComanda = () => {
+    if (!mesaSelecionada) return;
+
+    let telefone = "";
+    if (clienteSelecionadoId) {
+      const clienteEncontrado = clientes.find(c => String(c.id) === String(clienteSelecionadoId));
+      if (clienteEncontrado && clienteEncontrado.telefone) {
+        telefone = clienteEncontrado.telefone;
+      }
+    }
+
+    if (!telefone) {
+      const resp = prompt("Cliente sem telefone cadastrado. Digite o número do cliente (ex: 11997814149):");
+      if (!resp) {
+        alert("Envio cancelado.");
+        return;
+      }
+      telefone = resp;
+    }
+
+    const itensMesa = mesaSelecionada.itens || [];
+    let itensTexto = "";
+    if (itensMesa.length > 0) {
+      itensTexto = itensMesa.map((item: any) =>
+        `🍽️ ${item.quantidade}x ${item.nome} - R$ ${(item.preco * item.quantidade).toFixed(2).replace('.', ',')}`
+      ).join('\n');
+    } else {
+      itensTexto = "Nenhum item consumido.";
+    }
+
+    const total = Number(mesaSelecionada.total);
+
+    const clienteNome = mesaSelecionada.cliente || "amigo(a)";
+    const mensagem = `Olá, ${clienteNome}! 🎉\n\nQue alegria receber você aqui no *Bar da Praça*! 🍻\n\nAqui está o resumo da sua saideira de hoje:\n\n${itensTexto}\n\n💰 **Total: R$ ${total.toFixed(2).replace('.', ',')}**\n\nEsperamos que você tenha curtido o momento com a gente! Volte logo, a casa é sua! 💛👋`;
+    
+    const link = `https://wa.me/55${telefone}?text=${encodeURIComponent(mensagem)}`;
+    window.open(link, '_blank');
+  };
+
   const aniversariantesFiltrados = clientes.filter(c => {
     if (!c.data_nascimento) return false;
-    let month;
-    if (c.data_nascimento.includes('-')) month = c.data_nascimento.split('-')[1];
-    else if (c.data_nascimento.includes('/')) month = c.data_nascimento.split('/')[1];
-    return parseInt(month || "0", 10) === mesAniversario;
+    const [, month] = c.data_nascimento.split('-');
+    return parseInt(month, 10) === mesAniversario;
   }).sort((a, b) => {
-    let dayA = 0, dayB = 0;
-    if (a.data_nascimento.includes('-')) dayA = parseInt(a.data_nascimento.split('-')[2] || "0", 10);
-    else if (a.data_nascimento.includes('/')) dayA = parseInt(a.data_nascimento.split('/')[0] || "0", 10);
-    if (b.data_nascimento.includes('-')) dayB = parseInt(b.data_nascimento.split('-')[2] || "0", 10);
-    else if (b.data_nascimento.includes('/')) dayB = parseInt(b.data_nascimento.split('/')[0] || "0", 10);
+    const dayA = parseInt(a.data_nascimento.split('-')[2], 10);
+    const dayB = parseInt(b.data_nascimento.split('-')[2], 10);
     return dayA - dayB;
   });
 
@@ -1358,14 +1487,14 @@ export default function Dashboard() {
 
   const clientesFiltradosModal = clientes.filter(c => {
     const termo = buscaClienteModal.toLowerCase();
-    const nomeBate = String(c.nome || "").toLowerCase().includes(termo);
-    const telefoneBate = c.telefone && String(c.telefone).includes(termo);
+    const nomeBate = c.nome.toLowerCase().includes(termo);
+    const telefoneBate = c.telefone && c.telefone.includes(termo);
     return nomeBate || telefoneBate;
   });
 
   const categorias = ["Todas", "Bebidas", "Drinks", "Porções", "Lanches"];
   const produtosFiltrados = produtos.filter((p) => {
-    const matchBusca = String(p.nome || "").toLowerCase().includes(buscaProduto.toLowerCase());
+    const matchBusca = p.nome.toLowerCase().includes(buscaProduto.toLowerCase());
     const matchCat = categoriaAtiva === "Todas" || p.categoria === categoriaAtiva;
     return matchBusca && matchCat;
   });
@@ -1394,7 +1523,7 @@ export default function Dashboard() {
             </div>
             <div>
               <h1 className="text-lg md:text-xl font-bold text-yellow-500 italic uppercase leading-none">
-                Bar da Praça <span className="text-[10px] text-zinc-500 ml-1">v5.1</span>
+                Bar da Praça <span className="text-[10px] text-zinc-500 ml-1">v4.0</span>
               </h1>
               <p className="text-[10px] md:text-xs text-zinc-400 mt-1">Bem-vindo, {usuario.nome}</p>
             </div>
@@ -1450,7 +1579,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <div className="space-y-2 mt-2">
-                    <p className="text-xs md:text-sm font-black uppercase tracking-widest text-yellow-500">R$ {Number(mesa.total || 0).toFixed(2)}</p>
+                    <p className="text-xs md:text-sm font-black uppercase tracking-widest text-yellow-500">R$ {Number(mesa.total).toFixed(2)}</p>
                     <button onClick={(e) => { e.stopPropagation(); setMesaSelecionada(mesa); setCozinhaAberta(true); }} className={`w-full text-white py-1.5 rounded-lg text-[9px] md:text-[10px] font-black uppercase transition-all shadow-lg ${temPedidoCozinha ? "bg-red-600 animate-pulse shadow-[0_0_15px_rgba(220,38,38,0.6)]" : "bg-yellow-600 hover:bg-yellow-500"}`}>
                       {temPedidoCozinha ? "⏳ Pendente" : "🟡 Ver Cozinha"}
                     </button>
@@ -1482,7 +1611,7 @@ export default function Dashboard() {
                   <p className="text-zinc-500 text-center py-8 font-bold uppercase text-sm">Nenhum cliente faz aniversário neste mês.</p>
                 ) : (
                   aniversariantesFiltrados.map(cliente => {
-                    const dia = cliente.data_nascimento.includes('-') ? cliente.data_nascimento.split('-')[2] : cliente.data_nascimento.split('/')[0];
+                    const dia = cliente.data_nascimento.split('-')[2];
                     const hoje = new Date().getDate();
                     const mesAtual = new Date().getMonth() + 1;
                     const ehHoje = (parseInt(dia) === hoje && mesAniversario === mesAtual);
@@ -1625,7 +1754,7 @@ export default function Dashboard() {
                         <p className="text-xs text-zinc-400">{new Date(fiado.data_criacao).toLocaleDateString()}</p>
                       </div>
                       <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
-                        <span className="text-orange-500 font-black text-lg">R$ {Number(fiado.total || 0).toFixed(2)}</span>
+                        <span className="text-orange-500 font-black text-lg">R$ {Number(fiado.total).toFixed(2)}</span>
                         <button onClick={() => selecionarFiado(fiado)} className="bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all">Receber</button>
                       </div>
                     </div>
@@ -1646,7 +1775,7 @@ export default function Dashboard() {
             </div>
             <p className="text-zinc-400 text-sm mb-4">Cliente: <span className="font-bold text-white">{fiadoSelecionado.cliente_nome}</span></p>
             <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 mb-6">
-              <p className="text-zinc-400 text-sm">Total pendente: <span className="font-bold text-orange-500 text-xl">R$ {Number(fiadoSelecionado.total || 0).toFixed(2)}</span></p>
+              <p className="text-zinc-400 text-sm">Total pendente: <span className="font-bold text-orange-500 text-xl">R$ {Number(fiadoSelecionado.total).toFixed(2)}</span></p>
             </div>
             <div className="mb-4">
               <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block mb-2">Valor a pagar (R$)</label>
@@ -1668,9 +1797,9 @@ export default function Dashboard() {
               <button onClick={adicionarPagamentoFiado} className="text-orange-500 hover:text-orange-400 text-xs font-black uppercase transition-colors">+ Adicionar outra forma</button>
             </div>
             <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 space-y-2 mb-6">
-              <div className="flex justify-between"><span className="text-zinc-400 text-sm">Total Pendente:</span><span className="font-bold text-orange-500">R$ {Number(fiadoSelecionado.total || 0).toFixed(2)}</span></div>
-              <div className="flex justify-between"><span className="text-zinc-400 text-sm">Total Pago:</span><span className="font-bold text-green-500">R$ {pagamentosFiado.reduce((acc, p) => acc + (Number(p.valor) || 0), 0).toFixed(2)}</span></div>
-              {pagamentosFiado.reduce((acc, p) => acc + (Number(p.valor) || 0), 0) > 0 && (<div className="flex justify-between"><span className="text-zinc-400 text-sm">Saldo Restante:</span><span className="font-bold text-blue-400">R$ {(Number(fiadoSelecionado.total || 0) - pagamentosFiado.reduce((acc, p) => acc + (Number(p.valor) || 0), 0)).toFixed(2)}</span></div>)}
+              <div className="flex justify-between"><span className="text-zinc-400 text-sm">Total Pendente:</span><span className="font-bold text-orange-500">R$ {Number(fiadoSelecionado.total).toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-zinc-400 text-sm">Total Pago:</span><span className="font-bold text-green-500">R$ {pagamentosFiado.reduce((acc, p) => acc + (p.valor || 0), 0).toFixed(2)}</span></div>
+              {pagamentosFiado.reduce((acc, p) => acc + (p.valor || 0), 0) > 0 && (<div className="flex justify-between"><span className="text-zinc-400 text-sm">Saldo Restante:</span><span className="font-bold text-blue-400">R$ {(Number(fiadoSelecionado.total) - pagamentosFiado.reduce((acc, p) => acc + (p.valor || 0), 0)).toFixed(2)}</span></div>)}
             </div>
             <button onClick={receberFiado} disabled={processando} className="w-full bg-green-600 hover:bg-green-500 text-white font-black py-4 rounded-xl text-lg uppercase italic transition-all shadow-xl disabled:opacity-50">{processando ? "Aguarde..." : "Confirmar Recebimento"}</button>
           </div>
@@ -1694,7 +1823,7 @@ export default function Dashboard() {
                   <tbody>
                     {insumos.map((i) => (
                       <tr key={i.id} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
-                        <td className="p-3 font-bold uppercase">{i.nome}</td><td className="p-3 text-zinc-400">{i.unidade}</td><td className="p-3 text-right text-yellow-500 font-black">{i.estoque}</td><td className="p-3 text-right text-zinc-400">R$ {Number(i.custo_unidade || 0).toFixed(2)}</td>
+                        <td className="p-3 font-bold uppercase">{i.nome}</td><td className="p-3 text-zinc-400">{i.unidade}</td><td className="p-3 text-right text-yellow-500 font-black">{i.estoque}</td><td className="p-3 text-right text-zinc-400">R$ {Number(i.custo_unidade).toFixed(2)}</td>
                         <td className="p-3 text-center space-x-2">
                           <button onClick={() => abrirFormInsumo(i)} className="text-blue-400 hover:text-blue-300 text-xs font-black uppercase">Editar</button>
                           <button onClick={() => excluirInsumo(i.id)} disabled={processando} className="text-red-500 hover:text-red-400 text-xs font-black uppercase disabled:opacity-50">Excluir</button>
@@ -1746,7 +1875,7 @@ export default function Dashboard() {
                   </select>
                 </div>
                 <div><label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Preço (R$)</label><input type="number" step="0.01" value={formProduto.preco} onChange={(e) => setFormProduto({ ...formProduto, preco: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-yellow-500 outline-none" required /></div>
-                <div className="flex items-end"><span className="text-xs text-zinc-500 font-bold">Custo estimado: R$ {receitaTemp.reduce((acc, i) => acc + (Number(i.qtd || 0) * Number(insumos.find(inss => String(inss.id) === String(i.insumo_id))?.custo_unidade || 0)), 0).toFixed(2)}</span></div>
+                <div className="flex items-end"><span className="text-xs text-zinc-500 font-bold">Custo estimado: R$ {receitaTemp.reduce((acc, i) => acc + (i.qtd * (insumos.find(inss => String(inss.id) === String(i.insumo_id))?.custo_unidade || 0)), 0).toFixed(2)}</span></div>
               </div>
 
               <div className="border-t border-zinc-800 pt-4 mt-4">
@@ -1816,7 +1945,7 @@ export default function Dashboard() {
                     <div key={prod.id} className={`p-4 rounded-xl border transition-all flex justify-between items-center ${qtd > 0 ? "border-yellow-500/40 bg-yellow-500/5" : "border-zinc-800 bg-zinc-900/30"}`}>
                       <div>
                         <p className="font-black uppercase tracking-tighter text-zinc-100">{prod.nome}</p>
-                        <p className="text-yellow-500 font-black text-sm italic">R$ {Number(prod.preco || 0).toFixed(2)}</p>
+                        <p className="text-yellow-500 font-black text-sm italic">R$ {prod.preco.toFixed(2)}</p>
                         {isGerente && (
                           <div className="flex items-center gap-2 mt-1">
                             <button onClick={() => abrirEdicaoProduto(prod)} className="text-blue-400 hover:text-blue-300 text-[10px] font-black uppercase p-1 -ml-1">Editar</button>
@@ -1843,7 +1972,7 @@ export default function Dashboard() {
                   pedidoAtual.length > 0 ? "bg-yellow-500 text-zinc-950 hover:bg-yellow-400 shadow-xl" : "bg-zinc-800 text-zinc-500 cursor-not-allowed"
                 }`}
               >
-                {processando ? "Enviando..." : `Enviar Pedido - R$ ${pedidoAtual.reduce((acc, i) => acc + Number(i.preco || 0) * Number(i.quantidade || 0), 0).toFixed(2)}`}
+                {processando ? "Enviando..." : `Enviar Pedido - R$ ${pedidoAtual.reduce((acc, i) => acc + i.preco * i.quantidade, 0).toFixed(2)}`}
               </button>
             </div>
           </div>
@@ -1932,7 +2061,7 @@ export default function Dashboard() {
                       <span className="text-lg font-black text-yellow-500 italic">x{item.quantidade}</span>
                       <span className="font-bold text-xs md:text-sm uppercase text-zinc-200">{item.nome}</span>
                     </div>
-                    <span className="text-zinc-400 font-bold text-xs shrink-0">R$ {(Number(item.preco || 0) * Number(item.quantidade || 0)).toFixed(2)}</span>
+                    <span className="text-zinc-400 font-bold text-xs shrink-0">R$ {(item.preco * item.quantidade).toFixed(2)}</span>
                   </div>
                 ))
               ) : (
@@ -1943,7 +2072,7 @@ export default function Dashboard() {
             <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800 mb-6 shrink-0">
               <div className="flex justify-between items-center">
                 <span className="text-zinc-400 font-bold uppercase text-xs">Total</span>
-                <span className="text-2xl font-black text-yellow-500 italic">R$ {Number(mesaSelecionada.total || 0).toFixed(2)}</span>
+                <span className="text-2xl font-black text-yellow-500 italic">R$ {Number(mesaSelecionada.total).toFixed(2)}</span>
               </div>
             </div>
 
@@ -1966,9 +2095,10 @@ export default function Dashboard() {
 
             <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 mb-6">
               <p className="text-zinc-400 text-sm">Cliente: <span className="font-bold text-zinc-200">{mesaSelecionada.cliente}</span></p>
-              <p className="text-zinc-400 text-sm">Total da conta: <span className="font-bold text-yellow-500 text-xl md:text-2xl">R$ {Number(mesaSelecionada.total || 0).toFixed(2)}</span></p>
+              <p className="text-zinc-400 text-sm">Total da conta: <span className="font-bold text-yellow-500 text-xl md:text-2xl">R$ {Number(mesaSelecionada.total).toFixed(2)}</span></p>
             </div>
 
+            {/* Vincular Cliente */}
             <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 mb-4">
               <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block mb-2">Vincular Cliente (opcional)</label>
               <div className="relative flex gap-2">
@@ -2045,6 +2175,7 @@ export default function Dashboard() {
 
             <div className="flex flex-col gap-3">
               <div className="flex flex-col md:flex-row gap-3">
+                <button onClick={enviarWhatsAppComanda} className="flex-1 bg-green-500 hover:bg-green-400 text-white font-black py-4 rounded-xl text-xs md:text-sm uppercase italic transition-all shadow-xl flex items-center justify-center gap-2">📱 Enviar WhatsApp</button>
                 <button
                   onClick={() => {
                     const pagamentosAtuais = pagamentos.filter(p => p.valor > 0);
