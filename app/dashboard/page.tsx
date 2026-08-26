@@ -44,7 +44,6 @@ export default function Dashboard() {
   
   const [processando, setProcessando] = useState(false);
 
-  // Estados dos modais principais
   const [modalAberto, setModalAberto] = useState(false);
   const [numeroMesa, setNumeroMesa] = useState("");
   const [clienteMesa, setClienteMesa] = useState("");
@@ -56,7 +55,6 @@ export default function Dashboard() {
   const [buscaProduto, setBuscaProduto] = useState("");
   const [cozinhaAberta, setCozinhaAberta] = useState(false);
 
-  // Estados do checkout
   const [checkoutAberto, setCheckoutAberto] = useState(false);
   const [pagamentos, setPagamentos] = useState<any[]>([
     { id: 1, metodo: "dinheiro", valor: 0 },
@@ -69,7 +67,6 @@ export default function Dashboard() {
   const [numeroPessoas, setNumeroPessoas] = useState(1);
   const [dividirIgual, setDividirIgual] = useState(false);
 
-  // Estados para clientes
   const [clienteSelecionadoId, setClienteSelecionadoId] = useState<string>("");
   const [buscaCliente, setBuscaCliente] = useState("");
   const [buscaClienteModal, setBuscaClienteModal] = useState(""); 
@@ -82,7 +79,6 @@ export default function Dashboard() {
   });
   const [clientesFiltrados, setClientesFiltrados] = useState<any[]>([]);
 
-  // Estados do gerenciador de fiados
   const [fiadosAberto, setFiadosAberto] = useState(false);
   const [fiadoSelecionado, setFiadoSelecionado] = useState<any>(null);
   const [itensSelecionadosFiado, setItensSelecionadosFiado] = useState<number[]>([]);
@@ -92,11 +88,9 @@ export default function Dashboard() {
   const [fiadoModalAberto, setFiadoModalAberto] = useState(false);
   const [valorPagamentoFiado, setValorPagamentoFiado] = useState(0);
 
-  // Estados para impressão
   const [comandaAberta, setComandaAberta] = useState(false);
   const [dadosComanda, setDadosComanda] = useState<any>(null);
 
-  // Estados para gerenciamento de estoque
   const [estoqueAberto, setEstoqueAberto] = useState(false);
   const [insumoEditando, setInsumoEditando] = useState<any>(null);
   const [formInsumo, setFormInsumo] = useState({
@@ -107,7 +101,6 @@ export default function Dashboard() {
   });
   const [modalInsumoAberto, setModalInsumoAberto] = useState(false);
 
-  // Estados para gerenciamento de produtos
   const [modalProdutoAberto, setModalProdutoAberto] = useState(false);
   const [produtoEditando, setProdutoEditando] = useState<any>(null);
   const [formProduto, setFormProduto] = useState({
@@ -118,7 +111,6 @@ export default function Dashboard() {
   const [receitaTemp, setReceitaTemp] = useState<any[]>([]);
   const [ingredienteTemp, setIngredienteTemp] = useState({ insumo_id: "", qtd: "" });
 
-  // Estados para gerenciamento de Garçons
   const [modalGarcomAberto, setModalGarcomAberto] = useState(false);
   const [modalGarcomFormAberto, setModalGarcomFormAberto] = useState(false); 
   const [formGarcom, setFormGarcom] = useState({
@@ -128,7 +120,6 @@ export default function Dashboard() {
     confirmarSenha: "",
   });
 
-  // Estados para gerenciamento de clientes
   const [modalClientesAberto, setModalClientesAberto] = useState(false);
   const [clienteEditando, setClienteEditando] = useState<any>(null);
   const [formCliente, setFormCliente] = useState({
@@ -139,7 +130,6 @@ export default function Dashboard() {
   });
   const [modalClienteFormAberto, setModalClienteFormAberto] = useState(false);
 
-  // Estado para aniversariantes
   const [modalAniversariantesAberto, setModalAniversariantesAberto] = useState(false);
   const [mesAniversario, setMesAniversario] = useState(new Date().getMonth() + 1);
 
@@ -155,55 +145,32 @@ export default function Dashboard() {
 
   async function carregarDados() {
     try {
-      const { data: mesasData, error: errMesas } = await supabase
-        .from("mesas")
-        .select("*")
-        .eq("status", "ocupada")
-        .order("numero", { ascending: true });
+      const { data: mesasData, error: errMesas } = await supabase.from("mesas").select("*").eq("status", "ocupada").order("numero", { ascending: true });
       if (errMesas) throw new Error(errMesas.message);
       setMesas(mesasData || []);
 
-      const { data: produtosData, error: errProdutos } = await supabase
-        .from("produtos")
-        .select("*")
-        .order("nome");
+      const { data: produtosData, error: errProdutos } = await supabase.from("produtos").select("*").order("nome");
       if (errProdutos) throw new Error(errProdutos.message);
       setProdutos(produtosData || []);
 
-      const { data: insumosData, error: errInsumos } = await supabase
-        .from("insumos")
-        .select("*")
-        .order("nome");
+      const { data: insumosData, error: errInsumos } = await supabase.from("insumos").select("*").order("nome");
       if (errInsumos) throw new Error(errInsumos.message);
       setInsumos(insumosData || []);
 
-      const { data: cozinhaData, error: errCozinha } = await supabase
-        .from("pedidos_cozinha")
-        .select("*")
-        .order("created_at", { ascending: true });
+      const { data: cozinhaData, error: errCozinha } = await supabase.from("pedidos_cozinha").select("*").order("created_at", { ascending: true });
       if (errCozinha) throw new Error(errCozinha.message);
       setPedidosCozinha(cozinhaData || []);
 
-      const { data: fiadosData, error: errFiados } = await supabase
-        .from("fiados")
-        .select("*")
-        .order("data_criacao", { ascending: false });
+      const { data: fiadosData, error: errFiados } = await supabase.from("fiados").select("*").order("data_criacao", { ascending: false });
       if (errFiados) throw new Error(errFiados.message);
       setFiados(fiadosData || []);
 
-      const { data: clientesData, error: errClientes } = await supabase
-        .from("clientes")
-        .select("*")
-        .order("nome", { ascending: true });
+      const { data: clientesData, error: errClientes } = await supabase.from("clientes").select("*").order("nome", { ascending: true });
       if (errClientes) throw new Error(errClientes.message);
       setClientes(clientesData || []);
       setClientesFiltrados(clientesData || []);
 
-      const { data: garconsData, error: errGarcons } = await supabase
-        .from("usuarios")
-        .select("*")
-        .eq("role", "colaborador")
-        .order("nome", { ascending: true });
+      const { data: garconsData, error: errGarcons } = await supabase.from("usuarios").select("*").eq("role", "colaborador").order("nome", { ascending: true });
       if (errGarcons) throw new Error(errGarcons.message);
       setGarcons(garconsData || []);
 
@@ -214,7 +181,6 @@ export default function Dashboard() {
     }
   }
 
-  // ========== REALTIME SSOT (Fonte Única de Verdade) ==========
   useEffect(() => {
     if (!usuario) return;
 
@@ -342,7 +308,6 @@ export default function Dashboard() {
     }
   }, [buscaCliente, clientes]);
 
-  // ========== FUNÇÕES DE NEGÓCIO ==========
 
   async function abrirNovaMesa(e: React.FormEvent) {
     e.preventDefault();
@@ -359,30 +324,19 @@ export default function Dashboard() {
 
     setProcessando(true);
     try {
-      const { data: mesaExistente, error: errBusca } = await supabase
-        .from("mesas")
-        .select("*")
-        .eq("numero", num)
-        .maybeSingle();
-
+      const { data: mesaExistente, error: errBusca } = await supabase.from("mesas").select("*").eq("numero", num).maybeSingle();
       if (errBusca) throw errBusca;
 
       if (mesaExistente) {
         if (mesaExistente.status === "ocupada") {
           alert("Esta mesa já está ocupada.");
+          setProcessando(false);
           return;
         }
-        const { error: errUpdate } = await supabase
-          .from("mesas")
-          .update({ status: "ocupada", cliente: clienteMesa, total: 0, itens: [] })
-          .eq("id", mesaExistente.id);
-
+        const { error: errUpdate } = await supabase.from("mesas").update({ status: "ocupada", cliente: clienteMesa, total: 0, itens: [] }).eq("id", mesaExistente.id);
         if (errUpdate) throw errUpdate;
       } else {
-        const { error: errInsert } = await supabase
-          .from("mesas")
-          .insert([{ numero: num, status: "ocupada", cliente: clienteMesa, total: 0, itens: [] }]);
-
+        const { error: errInsert } = await supabase.from("mesas").insert([{ numero: num, status: "ocupada", cliente: clienteMesa, total: 0, itens: [] }]);
         if (errInsert) throw errInsert;
       }
       
@@ -431,7 +385,6 @@ export default function Dashboard() {
     });
   }
 
-  // CORREÇÃO: Enviar pedido sem atualizar manualmente pedidosCozinha para evitar duplicação
   async function enviarPedido() {
     if (!mesaSelecionada || pedidoAtual.length === 0) return;
     if (processando) return;
@@ -480,33 +433,27 @@ export default function Dashboard() {
         hora: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
       };
 
-      const { error: errMesa } = await supabase
-        .from("mesas")
-        .update({ total: totalNovo, itens: itensAtualizados })
-        .eq("id", mesaSelecionada.id);
-
+      const { error: errMesa } = await supabase.from("mesas").update({ total: totalNovo, itens: itensAtualizados }).eq("id", mesaSelecionada.id);
       if (errMesa) throw errMesa;
 
-      const { error: errCozinha } = await supabase
-        .from("pedidos_cozinha")
-        .insert([pedidoCozinha]);
-
+      const { error: errCozinha } = await supabase.from("pedidos_cozinha").insert([pedidoCozinha]);
       if (errCozinha) throw errCozinha;
 
-      // Não atualizamos pedidosCozinha manualmente – o Realtime fará isso.
-      // Mas precisamos atualizar a mesa localmente
-      setMesas((prev) =>
-        prev.map((m) =>
-          String(m.id) === String(mesaSelecionada.id)
-            ? { ...m, total: totalNovo, itens: itensAtualizados }
-            : m
-        )
-      );
-      setMesaSelecionada((prev: any) => ({
-        ...prev,
-        total: totalNovo,
-        itens: itensAtualizados,
-      }));
+      for (const item of pedidoAtual) {
+        const produto = produtos.find((p) => String(p.id) === String(item.id));
+        if (!produto || !produto.receita || produto.receita.length === 0) continue;
+
+        for (const ing of produto.receita) {
+          const insumo = insumos.find((i) => String(i.id) === String(ing.insumo_id));
+          if (!insumo) continue;
+          const qtdUsada = parseFloat(ing.qtd) * item.quantidade;
+          const novoEstoque = insumo.estoque - qtdUsada;
+
+          const { error: errEstoque } = await supabase.from("insumos").update({ estoque: novoEstoque }).eq("id", insumo.id);
+          if (errEstoque) throw errEstoque;
+        }
+      }
+
       setPedidoAtual([]);
       setCardapioAberto(false);
       
@@ -647,9 +594,7 @@ export default function Dashboard() {
       const custoEstimado = valorPago * 0.4;
       const lucroEstimado = valorPago * 0.6;
 
-      const { error: errVenda } = await supabase
-        .from("vendas")
-        .insert([{
+      const { error: errVenda } = await supabase.from("vendas").insert([{
           total_venda: valorPago,
           custo_total: custoEstimado,
           lucro_total: lucroEstimado,
@@ -670,11 +615,7 @@ export default function Dashboard() {
         setCheckoutAberto(false);
         alert(`Pagamento de R$ ${valorPago.toFixed(2)} realizado. Mesa encerrada.`);
       } else {
-        const { error: errUpdate } = await supabase
-          .from("mesas")
-          .update({ total: novoTotal })
-          .eq("id", mesaSelecionada.id);
-
+        const { error: errUpdate } = await supabase.from("mesas").update({ total: novoTotal }).eq("id", mesaSelecionada.id);
         if (errUpdate) throw errUpdate;
 
         const novosPagamentos = pagamentos.filter(p => p.id !== id);
@@ -698,16 +639,12 @@ export default function Dashboard() {
     }
     setProcessando(true);
     try {
-      const { data, error } = await supabase
-        .from("clientes")
-        .insert([{
+      const { data, error } = await supabase.from("clientes").insert([{
           nome: nome.trim(),
           telefone: telefone.trim() || null,
           email: email.trim() || null,
           data_nascimento: data_nascimento || null,
-        }])
-        .select()
-        .single();
+        }]).select().single();
 
       if (error) throw error;
 
@@ -766,9 +703,7 @@ export default function Dashboard() {
         const lucroEstimado = somaPago * 0.6;
         const clienteId = clienteSelecionadoId || null;
 
-        const { error: errVenda } = await supabase
-          .from("vendas")
-          .insert([{
+        const { error: errVenda } = await supabase.from("vendas").insert([{
             total_venda: somaPago,
             custo_total: custoEstimado,
             lucro_total: lucroEstimado,
@@ -784,11 +719,7 @@ export default function Dashboard() {
 
       if (valorFiado > 0.01) {
         const nomeFiado = clienteNomeFiado.trim().toUpperCase();
-        const { data: fiadoExistente } = await supabase
-          .from("fiados")
-          .select("*")
-          .ilike("cliente_nome", nomeFiado)
-          .maybeSingle();
+        const { data: fiadoExistente } = await supabase.from("fiados").select("*").ilike("cliente_nome", nomeFiado).maybeSingle();
 
         if (fiadoExistente) {
           const novoTotal = Number(fiadoExistente.total) + valorFiado;
@@ -801,15 +732,10 @@ export default function Dashboard() {
               itensAtuais.push({ ...itemNovo });
             }
           });
-          const { error: errUpFiado } = await supabase
-            .from("fiados")
-            .update({ total: novoTotal, itens: itensAtuais })
-            .eq("id", fiadoExistente.id);
+          const { error: errUpFiado } = await supabase.from("fiados").update({ total: novoTotal, itens: itensAtuais }).eq("id", fiadoExistente.id);
           if (errUpFiado) throw errUpFiado;
         } else {
-          const { error: errInsert } = await supabase
-            .from("fiados")
-            .insert([{
+          const { error: errInsert } = await supabase.from("fiados").insert([{
               cliente_nome: nomeFiado,
               total: valorFiado,
               itens: itensVenda,
@@ -889,12 +815,9 @@ export default function Dashboard() {
       });
       const novoTotal = itensAgrupados.reduce((acc: any, i: any) => acc + (i.preco * i.quantidade), 0);
 
-      const { error } = await supabase
-        .from("fiados")
-        .update({ itens: itensAgrupados, total: novoTotal })
-        .eq("id", fiadoSelecionado.id);
-
+      const { error } = await supabase.from("fiados").update({ itens: itensAgrupados, total: novoTotal }).eq("id", fiadoSelecionado.id);
       if (error) throw error;
+      
       setItensSelecionadosFiado([]);
       alert("Item removido do fiado.");
     } catch (err: any) {
@@ -953,9 +876,7 @@ export default function Dashboard() {
       const custoEstimado = somaPago * 0.4;
       const lucroEstimado = somaPago * 0.6;
 
-      const { error: errVenda } = await supabase
-        .from("vendas")
-        .insert([{
+      const { error: errVenda } = await supabase.from("vendas").insert([{
           total_venda: somaPago,
           custo_total: custoEstimado,
           lucro_total: lucroEstimado,
@@ -973,10 +894,7 @@ export default function Dashboard() {
         const { error: errDel } = await supabase.from("fiados").delete().eq("id", fiadoSelecionado.id);
         if (errDel) throw errDel;
       } else {
-        const { error: errUpdate } = await supabase
-          .from("fiados")
-          .update({ total: novoTotal })
-          .eq("id", fiadoSelecionado.id);
+        const { error: errUpdate } = await supabase.from("fiados").update({ total: novoTotal }).eq("id", fiadoSelecionado.id);
         if (errUpdate) throw errUpdate;
       }
 
@@ -1020,8 +938,6 @@ export default function Dashboard() {
     setComandaAberta(true);
   }
 
-  // ========== GERENCIAMENTO ESTOQUE ==========
-
   function abrirEstoque() {
     if (usuario?.role !== "gerente") {
       alert("Apenas gerentes podem gerenciar o estoque.");
@@ -1063,19 +979,14 @@ export default function Dashboard() {
     setProcessando(true);
     try {
       if (insumoEditando) {
-        const { error } = await supabase
-          .from("insumos")
-          .update({ nome, unidade, estoque: estoqueNum, custo_unidade: custoNum })
-          .eq("id", insumoEditando.id);
+        const { error } = await supabase.from("insumos").update({ nome, unidade, estoque: estoqueNum, custo_unidade: custoNum }).eq("id", insumoEditando.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from("insumos")
-          .insert([{ nome, unidade, estoque: estoqueNum, custo_unidade: custoNum }]);
+        const { error } = await supabase.from("insumos").insert([{ nome, unidade, estoque: estoqueNum, custo_unidade: custoNum }]);
         if (error) throw error;
       }
       setModalInsumoAberto(false);
-      alert("Insumo salvo com sucesso!");
+      alert("Insumo enviado para o banco com sucesso!");
     } catch (err: any) {
       alert("Erro ao salvar insumo: " + err.message);
     } finally {
@@ -1096,8 +1007,6 @@ export default function Dashboard() {
       setProcessando(false);
     }
   }
-
-  // ========== GERENCIAMENTO DE PRODUTOS ==========
 
   function abrirNovoProduto() {
     if (usuario?.role !== "gerente") {
@@ -1185,15 +1094,10 @@ export default function Dashboard() {
     setProcessando(true);
     try {
       if (produtoEditando) {
-        const { error } = await supabase
-          .from("produtos")
-          .update(dados)
-          .eq("id", produtoEditando.id);
+        const { error } = await supabase.from("produtos").update(dados).eq("id", produtoEditando.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from("produtos")
-          .insert([dados]);
+        const { error } = await supabase.from("produtos").insert([dados]);
         if (error) throw error;
       }
       setModalProdutoAberto(false);
@@ -1218,16 +1122,6 @@ export default function Dashboard() {
     } finally {
       setProcessando(false);
     }
-  }
-
-  // ========== GERENCIAMENTO DE GARÇONS ==========
-
-  function abrirGarcons() {
-    if (usuario?.role !== "gerente") {
-      alert("Apenas gerentes podem gerenciar garçons.");
-      return;
-    }
-    setModalGarcomAberto(true);
   }
 
   async function adicionarGarcom(e: React.FormEvent) {
@@ -1267,11 +1161,7 @@ export default function Dashboard() {
       });
 
       if (authError) {
-        if (authError.message.includes("rate limit") || authError.message.includes("Rate limit")) {
-          alert("Aguarde alguns minutos devido ao limite de requisições de criação.");
-        } else {
-          alert("Erro ao criar usuário na base Auth: " + authError.message);
-        }
+        alert("Erro ao criar usuário na base Auth: " + authError.message);
         setProcessando(false);
         return;
       }
@@ -1315,8 +1205,6 @@ export default function Dashboard() {
     }
   }
 
-  // ========== GERENCIAMENTO DE CLIENTES ==========
-
   function abrirClientes() {
     if (usuario?.role !== "gerente") {
       alert("Apenas gerentes podem gerenciar clientes.");
@@ -1355,20 +1243,15 @@ export default function Dashboard() {
     setProcessando(true);
     try {
       if (clienteEditando) {
-        const { error } = await supabase
-          .from("clientes")
-          .update({
+        const { error } = await supabase.from("clientes").update({
             nome: nome.trim(),
             telefone: telefone.trim() || null,
             email: email.trim() || null,
             data_nascimento: data_nascimento || null,
-          })
-          .eq("id", clienteEditando.id);
+          }).eq("id", clienteEditando.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from("clientes")
-          .insert([{
+        const { error } = await supabase.from("clientes").insert([{
             nome: nome.trim(),
             telefone: telefone.trim() || null,
             email: email.trim() || null,
@@ -1402,8 +1285,6 @@ export default function Dashboard() {
     }
   }
 
-  // ========== EXCLUIR MESA COM DEVOLUÇÃO AO ESTOQUE ==========
-
   async function excluirMesa(mesa: any) {
     if (!confirm("Tem certeza que deseja excluir esta mesa?\nOs itens lançados serão devolvidos ao estoque e não poderão ser recuperados.")) return;
     if (processando) return;
@@ -1420,20 +1301,12 @@ export default function Dashboard() {
           const qtdDevolver = parseFloat(ing.qtd) * item.quantidade;
           const novoEstoque = insumo.estoque + qtdDevolver;
 
-          const { error: errEstoque } = await supabase
-            .from("insumos")
-            .update({ estoque: novoEstoque })
-            .eq("id", insumo.id);
-
+          const { error: errEstoque } = await supabase.from("insumos").update({ estoque: novoEstoque }).eq("id", insumo.id);
           if (errEstoque) throw errEstoque;
         }
       }
 
-      const { error: errDelete } = await supabase
-        .from("mesas")
-        .delete()
-        .eq("id", mesa.id);
-
+      const { error: errDelete } = await supabase.from("mesas").delete().eq("id", mesa.id);
       if (errDelete) throw errDelete;
 
       alert("Mesa excluída e itens devolvidos ao estoque com sucesso!");
@@ -1443,48 +1316,6 @@ export default function Dashboard() {
       setProcessando(false);
     }
   }
-
-  // ========== WHATSAPP ==========
-
-  const enviarWhatsAppComanda = () => {
-    if (!mesaSelecionada) return;
-
-    let telefone = "";
-    if (clienteSelecionadoId) {
-      const clienteEncontrado = clientes.find(c => String(c.id) === String(clienteSelecionadoId));
-      if (clienteEncontrado && clienteEncontrado.telefone) {
-        telefone = clienteEncontrado.telefone;
-      }
-    }
-
-    if (!telefone) {
-      const resp = prompt("Cliente sem telefone cadastrado. Digite o número do cliente (ex: 11997814149):");
-      if (!resp) {
-        alert("Envio cancelado.");
-        return;
-      }
-      telefone = resp;
-    }
-
-    const itensMesa = mesaSelecionada.itens || [];
-    let itensTexto = "";
-    if (itensMesa.length > 0) {
-      itensTexto = itensMesa.map((item: any) =>
-        `🍽️ ${item.quantidade}x ${item.nome} - R$ ${(item.preco * item.quantidade).toFixed(2).replace('.', ',')}`
-      ).join('\n');
-    } else {
-      itensTexto = "Nenhum item consumido.";
-    }
-
-    const total = Number(mesaSelecionada.total);
-    const clienteNome = mesaSelecionada.cliente || "amigo(a)";
-    const mensagem = `Olá, ${clienteNome}! 🎉\n\nQue alegria receber você aqui no *Bar da Praça*! 🍻\n\nAqui está o resumo da sua saideira de hoje:\n\n${itensTexto}\n\n💰 **Total: R$ ${total.toFixed(2).replace('.', ',')}**\n\nEsperamos que você tenha curtido o momento com a gente! Volte logo, a casa é sua! 💛👋`;
-    
-    const link = `https://wa.me/55${telefone}?text=${encodeURIComponent(mensagem)}`;
-    window.open(link, '_blank');
-  };
-
-  // ========== ANIVERSARIANTES ==========
 
   const aniversariantesFiltrados = clientes.filter(c => {
     if (!c.data_nascimento) return false;
@@ -1507,8 +1338,6 @@ export default function Dashboard() {
     const telefoneBate = c.telefone && c.telefone.includes(termo);
     return nomeBate || telefoneBate;
   });
-
-  // ========== RENDERIZAÇÃO ==========
 
   const categorias = ["Todas", "Bebidas", "Drinks", "Porções", "Lanches"];
   const produtosFiltrados = produtos.filter((p) => {
@@ -1541,7 +1370,7 @@ export default function Dashboard() {
             </div>
             <div>
               <h1 className="text-lg md:text-xl font-bold text-yellow-500 italic uppercase leading-none">
-                Bar da Praça <span className="text-[10px] text-zinc-500 ml-1">v4.0</span>
+                Bar da Praça <span className="text-[10px] text-zinc-500 ml-1">v5.0</span>
               </h1>
               <p className="text-[10px] md:text-xs text-zinc-400 mt-1">Bem-vindo, {usuario.nome}</p>
             </div>
@@ -1609,13 +1438,6 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* ========== MODAIS ========== */}
-      {/* Mantenha exatamente os mesmos modais do código anterior, sem alterações. */}
-      {/* Eles já estão corretos, e a única correção foi na lógica de envio de pedido e salvamento de insumo (sem atualização manual local). */}
-      
-      {/* Os modais abaixo são os mesmos que você já tinha, não vou repetir todo o código para não alongar, mas mantenha-os da versão anterior. */}
-
-      {/* ========== MODAL ANIVERSARIANTES ========== */}
       {modalAniversariantesAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
@@ -1623,6 +1445,7 @@ export default function Dashboard() {
               <h3 className="text-xl md:text-2xl font-black text-indigo-500 uppercase italic">🎉 Aniversariantes</h3>
               <button onClick={() => setModalAniversariantesAberto(false)} className="text-zinc-500 hover:text-zinc-300 text-2xl">✕</button>
             </div>
+            
             <div className="p-4 md:p-6 flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-zinc-950 p-4 rounded-2xl border border-zinc-800">
                 <span className="text-zinc-400 font-bold uppercase text-xs tracking-widest">Filtrar por Mês:</span>
@@ -1654,19 +1477,16 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== MODAL CLIENTES ========== */}
       {modalClientesAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
-            <div className="p-4 md:p-6 border-b border-zinc-800 flex justify-between items-center shrink-0">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="p-4 md:p-6 border-b border-zinc-800 flex justify-between items-center">
               <h3 className="text-xl md:text-2xl font-black text-pink-500 uppercase italic">👤 Clientes</h3>
               <button onClick={() => setModalClientesAberto(false)} className="text-zinc-500 hover:text-zinc-300 text-2xl">✕</button>
             </div>
-            <div className="p-4 md:p-6 flex-1 overflow-y-auto">
+            <div className="p-4 md:p-6">
               <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                <div className="flex-1 relative">
-                  <input type="text" placeholder="Buscar cliente por nome ou telefone..." value={buscaClienteModal} onChange={(e) => setBuscaClienteModal(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-50 font-bold focus:border-pink-500 outline-none" />
-                </div>
+                <div className="flex-1 relative"><input type="text" placeholder="Buscar cliente por nome ou telefone..." value={buscaClienteModal} onChange={(e) => setBuscaClienteModal(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-50 font-bold focus:border-pink-500 outline-none" /></div>
                 <button onClick={() => abrirFormCliente()} className="bg-pink-600 hover:bg-pink-500 text-white px-4 py-3 rounded-xl text-xs font-black uppercase transition-all w-full sm:w-auto shrink-0 shadow-xl">+ Novo Cliente</button>
               </div>
               <div className="overflow-x-auto">
@@ -1680,14 +1500,8 @@ export default function Dashboard() {
                     ) : (
                       clientesFiltradosModal.map((c) => (
                         <tr key={c.id} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
-                          <td className="p-3 font-bold uppercase">{c.nome}</td>
-                          <td className="p-3 text-zinc-400">{c.telefone || "-"}</td>
-                          <td className="p-3 text-zinc-400">{c.email || "-"}</td>
-                          <td className="p-3 text-zinc-400">{c.data_nascimento ? new Date(c.data_nascimento).toLocaleDateString() : "-"}</td>
-                          <td className="p-3 text-center space-x-2">
-                            <button onClick={() => abrirFormCliente(c)} className="text-blue-400 hover:text-blue-300 text-xs font-black uppercase">Editar</button>
-                            <button onClick={() => excluirCliente(c.id)} disabled={processando} className="text-red-500 hover:text-red-400 text-xs font-black uppercase disabled:opacity-50">Excluir</button>
-                          </td>
+                          <td className="p-3 font-bold uppercase">{c.nome}</td><td className="p-3 text-zinc-400">{c.telefone || "-"}</td><td className="p-3 text-zinc-400">{c.email || "-"}</td><td className="p-3 text-zinc-400">{c.data_nascimento ? new Date(c.data_nascimento).toLocaleDateString() : "-"}</td>
+                          <td className="p-3 text-center space-x-2"><button onClick={() => abrirFormCliente(c)} className="text-blue-400 hover:text-blue-300 text-xs font-black uppercase">Editar</button><button onClick={() => excluirCliente(c.id)} disabled={processando} className="text-red-500 hover:text-red-400 text-xs font-black uppercase disabled:opacity-50">Excluir</button></td>
                         </tr>
                       ))
                     )}
@@ -1699,7 +1513,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== MODAL FORM CLIENTE ========== */}
       {modalClienteFormAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl p-4 md:p-6">
@@ -1718,7 +1531,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== MODAL GARÇONS ========== */}
       {modalGarcomAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
@@ -1726,7 +1538,7 @@ export default function Dashboard() {
               <h3 className="text-xl md:text-2xl font-black text-cyan-500 uppercase italic">👤 Garçons Cadastrados</h3>
               <button onClick={() => setModalGarcomAberto(false)} className="text-zinc-500 hover:text-zinc-300 text-2xl">✕</button>
             </div>
-            <div className="p-4 md:p-6 flex-1 overflow-y-auto">
+            <div className="p-4 md:p-6">
               <button onClick={() => { setFormGarcom({ nome: "", email: "", senha: "", confirmarSenha: "" }); setModalGarcomAberto(false); setModalGarcomFormAberto(true); }} className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-3 rounded-xl text-xs font-black uppercase transition-all mb-6 w-full sm:w-auto shadow-xl">+ Novo Garçom</button>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm min-w-[500px]">
@@ -1739,8 +1551,7 @@ export default function Dashboard() {
                     ) : (
                       garcons.map((g) => (
                         <tr key={g.id} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
-                          <td className="p-3 font-bold uppercase">{g.nome}</td>
-                          <td className="p-3 text-zinc-400">{g.email}</td>
+                          <td className="p-3 font-bold uppercase">{g.nome}</td><td className="p-3 text-zinc-400">{g.email}</td>
                           <td className="p-3 text-center"><button onClick={() => excluirGarcom(g.id)} disabled={processando} className="text-red-500 hover:text-red-400 text-xs font-black uppercase disabled:opacity-50">🗑️ Excluir Acesso</button></td>
                         </tr>
                       ))
@@ -1753,7 +1564,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== MODAL FORM GARÇOM ========== */}
       {modalGarcomFormAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl p-4 md:p-6">
@@ -1772,7 +1582,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== MODAL FIADOS ========== */}
       {isGerente && fiadosAberto && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
@@ -1804,7 +1613,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== MODAL RECEBER FIADO ========== */}
       {isGerente && fiadoModalAberto && fiadoSelecionado && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-4 md:p-6">
@@ -1845,7 +1653,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== MODAL ESTOQUE ========== */}
       {isGerente && estoqueAberto && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
@@ -1863,10 +1670,7 @@ export default function Dashboard() {
                   <tbody>
                     {insumos.map((i) => (
                       <tr key={i.id} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
-                        <td className="p-3 font-bold uppercase">{i.nome}</td>
-                        <td className="p-3 text-zinc-400">{i.unidade}</td>
-                        <td className="p-3 text-right text-yellow-500 font-black">{i.estoque}</td>
-                        <td className="p-3 text-right text-zinc-400">R$ {Number(i.custo_unidade).toFixed(2)}</td>
+                        <td className="p-3 font-bold uppercase">{i.nome}</td><td className="p-3 text-zinc-400">{i.unidade}</td><td className="p-3 text-right text-yellow-500 font-black">{i.estoque}</td><td className="p-3 text-right text-zinc-400">R$ {Number(i.custo_unidade).toFixed(2)}</td>
                         <td className="p-3 text-center space-x-2">
                           <button onClick={() => abrirFormInsumo(i)} className="text-blue-400 hover:text-blue-300 text-xs font-black uppercase">Editar</button>
                           <button onClick={() => excluirInsumo(i.id)} disabled={processando} className="text-red-500 hover:text-red-400 text-xs font-black uppercase disabled:opacity-50">Excluir</button>
@@ -1881,7 +1685,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== MODAL FORM INSUMO ========== */}
       {isGerente && modalInsumoAberto && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl p-4 md:p-6">
@@ -1905,7 +1708,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== MODAL PRODUTO ========== */}
       {isGerente && modalProdutoAberto && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-4 md:p-6">
@@ -1958,7 +1760,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== CARDÁPIO ========== */}
       {cardapioAberto && (
         <div className="fixed inset-0 bg-black/60 z-40 flex justify-start">
           <div className="bg-zinc-950 w-full md:max-w-md h-full overflow-y-auto border-r border-zinc-800 p-4 md:p-6 animate-in slide-in-from-left duration-300 flex flex-col">
@@ -2025,7 +1826,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== COZINHA ========== */}
       {isGerente && cozinhaAberta && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
@@ -2067,7 +1867,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== MODAL NOVA MESA ========== */}
       {modalAberto && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-40 p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl">
@@ -2090,7 +1889,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== FICHA DA MESA ========== */}
       {fichaAberta && mesaSelecionada && (
         <div className="fixed inset-0 bg-black/60 z-30 flex justify-end">
           <div className="bg-zinc-950 w-full md:max-w-md h-full overflow-y-auto border-l border-zinc-800 p-4 md:p-6 animate-in slide-in-from-right duration-300 flex flex-col">
@@ -2134,7 +1932,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== CHECKOUT ========== */}
       {checkoutAberto && mesaSelecionada && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-4 md:p-6">
@@ -2148,7 +1945,6 @@ export default function Dashboard() {
               <p className="text-zinc-400 text-sm">Total da conta: <span className="font-bold text-yellow-500 text-xl md:text-2xl">R$ {Number(mesaSelecionada.total).toFixed(2)}</span></p>
             </div>
 
-            {/* Vincular Cliente */}
             <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 mb-4">
               <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block mb-2">Vincular Cliente (opcional)</label>
               <div className="relative flex gap-2">
@@ -2225,7 +2021,6 @@ export default function Dashboard() {
 
             <div className="flex flex-col gap-3">
               <div className="flex flex-col md:flex-row gap-3">
-                <button onClick={enviarWhatsAppComanda} className="flex-1 bg-green-500 hover:bg-green-400 text-white font-black py-4 rounded-xl text-xs md:text-sm uppercase italic transition-all shadow-xl flex items-center justify-center gap-2">📱 Enviar WhatsApp</button>
                 <button
                   onClick={() => {
                     const pagamentosAtuais = pagamentos.filter(p => p.valor > 0);
@@ -2241,7 +2036,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== COMANDA TÉRMICA ========== */}
       {comandaAberta && dadosComanda && (
         <ComandaTermica
           tipo={dadosComanda.tipo}
