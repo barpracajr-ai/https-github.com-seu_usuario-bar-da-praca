@@ -215,7 +215,7 @@ export default function Dashboard() {
     }
   }
 
-  // ========== REALTIME SSOT (Fonte Única de Verdade) ==========
+  // ========== REALTIME SSOT (Fonte Única de Verdade - Sem Conflito) ==========
   useEffect(() => {
     if (!usuario) return;
 
@@ -308,7 +308,7 @@ export default function Dashboard() {
     if (mesaSelecionada) {
       const atualizada = mesas.find(m => String(m.id) === String(mesaSelecionada.id));
       if (atualizada) setMesaSelecionada(atualizada);
-      else setMesaSelecionada(null); // Fecha ou zera se foi deletada
+      else setMesaSelecionada(null); 
     }
   }, [mesas]);
 
@@ -344,7 +344,7 @@ export default function Dashboard() {
     }
   }, [buscaCliente, clientes]);
 
-  // ========== FUNÇÕES DE NEGÓCIO ==========
+  // ========== FUNÇÕES DE NEGÓCIO RESTAURADAS (Somente DB) ==========
 
   async function abrirNovaMesa(e: React.FormEvent) {
     e.preventDefault();
@@ -439,11 +439,11 @@ export default function Dashboard() {
 
     let faltaEstoque = false;
     for (const item of pedidoAtual) {
-      const produto = produtos.find((p) => String(p.id) === String(item.id));
+      const produto = produtos.find((p) => p.id === item.id);
       if (!produto || !produto.receita || produto.receita.length === 0) continue;
 
       for (const ing of produto.receita) {
-        const insumo = insumos.find((i) => String(i.id) === String(ing.insumo_id));
+        const insumo = insumos.find((i) => i.id === ing.insumo_id);
         if (!insumo) continue;
         const qtdNecessaria = parseFloat(ing.qtd) * item.quantidade;
         if (insumo.estoque < qtdNecessaria) {
@@ -475,7 +475,6 @@ export default function Dashboard() {
       });
 
       const pedidoCozinha = {
-        id: Date.now().toString(),
         mesa: mesaSelecionada.numero.toString(),
         cliente: mesaSelecionada.cliente,
         itens: pedidoAtual,
@@ -1533,7 +1532,7 @@ export default function Dashboard() {
             </div>
             <div>
               <h1 className="text-lg md:text-xl font-bold text-yellow-500 italic uppercase leading-none">
-                Bar da Praça <span className="text-[10px] text-zinc-500 ml-1">v3.0</span>
+                Bar da Praça
               </h1>
               <p className="text-[10px] md:text-xs text-zinc-400 mt-1">Bem-vindo, {usuario.nome}</p>
             </div>
