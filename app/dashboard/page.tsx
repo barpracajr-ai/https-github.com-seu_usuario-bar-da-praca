@@ -150,61 +150,44 @@ export default function Dashboard() {
       router.push("/");
       return;
     }
-    setUsuario(JSON.parse(user));
+    try {
+      setUsuario(JSON.parse(user));
+    } catch (e) {
+      localStorage.removeItem("usuario");
+      router.push("/");
+      return;
+    }
     carregarDados();
   }, []);
 
   async function carregarDados() {
     try {
-      const { data: mesasData, error: errMesas } = await supabase
-        .from("mesas")
-        .select("*")
-        .eq("status", "ocupada")
-        .order("numero", { ascending: true });
+      const { data: mesasData, error: errMesas } = await supabase.from("mesas").select("*").eq("status", "ocupada").order("numero", { ascending: true });
       if (errMesas) throw new Error(errMesas.message);
       setMesas(mesasData || []);
 
-      const { data: produtosData, error: errProdutos } = await supabase
-        .from("produtos")
-        .select("*")
-        .order("nome");
+      const { data: produtosData, error: errProdutos } = await supabase.from("produtos").select("*").order("nome");
       if (errProdutos) throw new Error(errProdutos.message);
       setProdutos(produtosData || []);
 
-      const { data: insumosData, error: errInsumos } = await supabase
-        .from("insumos")
-        .select("*")
-        .order("nome");
+      const { data: insumosData, error: errInsumos } = await supabase.from("insumos").select("*").order("nome");
       if (errInsumos) throw new Error(errInsumos.message);
       setInsumos(insumosData || []);
 
-      const { data: cozinhaData, error: errCozinha } = await supabase
-        .from("pedidos_cozinha")
-        .select("*")
-        .order("created_at", { ascending: true });
+      const { data: cozinhaData, error: errCozinha } = await supabase.from("pedidos_cozinha").select("*").order("created_at", { ascending: true });
       if (errCozinha) throw new Error(errCozinha.message);
       setPedidosCozinha(cozinhaData || []);
 
-      const { data: fiadosData, error: errFiados } = await supabase
-        .from("fiados")
-        .select("*")
-        .order("data_criacao", { ascending: false });
+      const { data: fiadosData, error: errFiados } = await supabase.from("fiados").select("*").order("data_criacao", { ascending: false });
       if (errFiados) throw new Error(errFiados.message);
       setFiados(fiadosData || []);
 
-      const { data: clientesData, error: errClientes } = await supabase
-        .from("clientes")
-        .select("*")
-        .order("nome", { ascending: true });
+      const { data: clientesData, error: errClientes } = await supabase.from("clientes").select("*").order("nome", { ascending: true });
       if (errClientes) throw new Error(errClientes.message);
       setClientes(clientesData || []);
       setClientesFiltrados(clientesData || []);
 
-      const { data: garconsData, error: errGarcons } = await supabase
-        .from("usuarios")
-        .select("*")
-        .eq("role", "colaborador")
-        .order("nome", { ascending: true });
+      const { data: garconsData, error: errGarcons } = await supabase.from("usuarios").select("*").eq("role", "colaborador").order("nome", { ascending: true });
       if (errGarcons) throw new Error(errGarcons.message);
       setGarcons(garconsData || []);
 
@@ -215,7 +198,7 @@ export default function Dashboard() {
     }
   }
 
-  // ========== REALTIME SSOT (Blindagem contra itens duplicados) ==========
+  // ========== REALTIME SSOT (Blindagem contra itens duplicados e Crash de Null) ==========
   useEffect(() => {
     if (!usuario) return;
 
@@ -233,7 +216,7 @@ export default function Dashboard() {
             } else if (payload.eventType === 'DELETE') {
               map.delete(String(payload.old.id));
             }
-            return Array.from(map.values()).sort((a, b) => a.numero - b.numero);
+            return Array.from(map.values()).sort((a, b) => (Number(a.numero) || 0) - (Number(b.numero) || 0));
           });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "pedidos_cozinha" }, (payload) => {
@@ -258,7 +241,7 @@ export default function Dashboard() {
             } else if (payload.eventType === 'DELETE') {
               map.delete(String(payload.old.id));
             }
-            return Array.from(map.values()).sort((a, b) => new Date(b.data_criacao).getTime() - new Date(a.data_criacao).getTime());
+            return Array.from(map.values()).sort((a, b) => new Date(b.data_criacao || 0).getTime() - new Date(a.data_criacao || 0).getTime());
           });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "insumos" }, (payload) => {
@@ -269,7 +252,7 @@ export default function Dashboard() {
             } else if (payload.eventType === 'DELETE') {
               map.delete(String(payload.old.id));
             }
-            return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+            return Array.from(map.values()).sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || "")));
           });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "produtos" }, (payload) => {
@@ -280,7 +263,7 @@ export default function Dashboard() {
             } else if (payload.eventType === 'DELETE') {
               map.delete(String(payload.old.id));
             }
-            return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+            return Array.from(map.values()).sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || "")));
           });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "clientes" }, (payload) => {
@@ -291,7 +274,7 @@ export default function Dashboard() {
             } else if (payload.eventType === 'DELETE') {
               map.delete(String(payload.old.id));
             }
-            const novos = Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+            const novos = Array.from(map.values()).sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || "")));
             setClientesFiltrados(novos);
             return novos;
           });
@@ -317,7 +300,7 @@ export default function Dashboard() {
       if (atualizado) {
         if (atualizado.total !== fiadoSelecionado.total || JSON.stringify(atualizado.itens) !== JSON.stringify(fiadoSelecionado.itens)) {
           const itensDesmembrados: any[] = [];
-          if (atualizado.itens) {
+          if (atualizado.itens && Array.isArray(atualizado.itens)) {
             atualizado.itens.forEach((item: any) => {
               for (let i = 0; i < (Number(item.quantidade) || 1); i++) {
                 itensDesmembrados.push({ ...item, quantidade: 1, _id: Date.now() + Math.random() });
@@ -428,7 +411,7 @@ export default function Dashboard() {
     let faltaEstoque = false;
     for (const item of pedidoAtual) {
       const produto = produtos.find((p) => String(p.id) === String(item.id));
-      if (!produto || !produto.receita || produto.receita.length === 0) continue;
+      if (!produto || !produto.receita || !Array.isArray(produto.receita) || produto.receita.length === 0) continue;
 
       for (const ing of produto.receita) {
         const insumo = insumos.find((i) => String(i.id) === String(ing.insumo_id));
@@ -450,7 +433,7 @@ export default function Dashboard() {
     try {
       const totalRemessa = pedidoAtual.reduce((acc, i) => acc + Number(i.preco || 0) * Number(i.quantidade || 0), 0);
       const totalNovo = Number(mesaSelecionada.total || 0) + totalRemessa;
-      const itensAntigos = mesaSelecionada.itens || [];
+      const itensAntigos = Array.isArray(mesaSelecionada.itens) ? mesaSelecionada.itens : [];
       let itensAtualizados = [...itensAntigos];
 
       pedidoAtual.forEach((itemNovo: any) => {
@@ -464,7 +447,7 @@ export default function Dashboard() {
 
       const pedidoCozinha = {
         mesa: String(mesaSelecionada.numero || ""),
-        cliente: mesaSelecionada.cliente,
+        cliente: mesaSelecionada.cliente || "",
         itens: pedidoAtual,
         hora: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
       };
@@ -477,7 +460,7 @@ export default function Dashboard() {
 
       for (const item of pedidoAtual) {
         const produto = produtos.find((p) => String(p.id) === String(item.id));
-        if (!produto || !produto.receita || produto.receita.length === 0) continue;
+        if (!produto || !produto.receita || !Array.isArray(produto.receita) || produto.receita.length === 0) continue;
 
         for (const ing of produto.receita) {
           const insumo = insumos.find((i) => String(i.id) === String(ing.insumo_id));
@@ -626,7 +609,7 @@ export default function Dashboard() {
 
     setProcessando(true);
     try {
-      const itensVenda = mesaSelecionada.itens || [];
+      const itensVenda = Array.isArray(mesaSelecionada.itens) ? mesaSelecionada.itens : [];
       const custoEstimado = valorPago * 0.4;
       const lucroEstimado = valorPago * 0.6;
 
@@ -732,7 +715,7 @@ export default function Dashboard() {
 
     setProcessando(true);
     try {
-      const itensVenda = mesaSelecionada.itens || [];
+      const itensVenda = Array.isArray(mesaSelecionada.itens) ? mesaSelecionada.itens : [];
 
       if (somaPago > 0) {
         const custoEstimado = somaPago * 0.4;
@@ -759,7 +742,7 @@ export default function Dashboard() {
 
         if (fiadoExistente) {
           const novoTotal = Number(fiadoExistente.total || 0) + valorFiado;
-          let itensAtuais = fiadoExistente.itens || [];
+          let itensAtuais = Array.isArray(fiadoExistente.itens) ? fiadoExistente.itens : [];
           itensVenda.forEach((itemNovo: any) => {
             const existente = itensAtuais.find((i: any) => String(i.id) === String(itemNovo.id));
             if (existente) {
@@ -821,7 +804,7 @@ export default function Dashboard() {
 
   function selecionarTodosFiado() {
     if (!fiadoSelecionado) return;
-    const totalItens = fiadoSelecionado.itensDesmembrados?.length || 0;
+    const totalItens = Array.isArray(fiadoSelecionado.itensDesmembrados) ? fiadoSelecionado.itensDesmembrados.length : 0;
     if (itensSelecionadosFiado.length === totalItens) {
       setItensSelecionadosFiado([]);
     } else {
@@ -990,7 +973,7 @@ export default function Dashboard() {
     if (insumo) {
       setInsumoEditando(insumo);
       setFormInsumo({
-        nome: insumo.nome,
+        nome: insumo.nome || "",
         unidade: insumo.unidade || "UN",
         estoque: String(insumo.estoque || ""),
         custo_unidade: String(insumo.custo_unidade || ""),
@@ -1062,11 +1045,11 @@ export default function Dashboard() {
     }
     setProdutoEditando(produto);
     setFormProduto({
-      nome: produto.nome,
+      nome: produto.nome || "",
       categoria: produto.categoria || "Bebidas",
       preco: String(produto.preco || ""),
     });
-    setReceitaTemp(produto.receita || []);
+    setReceitaTemp(Array.isArray(produto.receita) ? produto.receita : []);
     setModalProdutoAberto(true);
   }
 
@@ -1177,11 +1160,7 @@ export default function Dashboard() {
 
     setProcessando(true);
     try {
-      const { data: usuarioExistente } = await supabase
-        .from("usuarios")
-        .select("id")
-        .ilike("email", email.trim().toLowerCase())
-        .maybeSingle();
+      const { data: usuarioExistente } = await supabase.from("usuarios").select("id").ilike("email", email.trim().toLowerCase()).maybeSingle();
 
       if (usuarioExistente) {
         alert("Este email já está cadastrado no sistema.");
@@ -1250,7 +1229,7 @@ export default function Dashboard() {
     if (cliente) {
       setClienteEditando(cliente);
       setFormCliente({
-        nome: cliente.nome,
+        nome: cliente.nome || "",
         telefone: cliente.telefone || "",
         email: cliente.email || "",
         data_nascimento: cliente.data_nascimento || "",
@@ -1322,10 +1301,10 @@ export default function Dashboard() {
     if (processando) return;
     setProcessando(true);
     try {
-      const itensMesa = mesa.itens || [];
+      const itensMesa = Array.isArray(mesa.itens) ? mesa.itens : [];
       for (const item of itensMesa) {
         const produto = produtos.find((p) => String(p.id) === String(item.id));
-        if (!produto || !produto.receita || produto.receita.length === 0) continue;
+        if (!produto || !produto.receita || !Array.isArray(produto.receita) || produto.receita.length === 0) continue;
 
         for (const ing of produto.receita) {
           const insumo = insumos.find((i) => String(i.id) === String(ing.insumo_id));
@@ -1407,7 +1386,7 @@ export default function Dashboard() {
             </div>
             <div>
               <h1 className="text-lg md:text-xl font-bold text-yellow-500 italic uppercase leading-none">
-                Bar da Praça <span className="text-[10px] text-zinc-500 ml-1">v6.0</span>
+                Bar da Praça <span className="text-[10px] text-zinc-500 ml-1">v7.0</span>
               </h1>
               <p className="text-[10px] md:text-xs text-zinc-400 mt-1">Bem-vindo, {usuario.nome}</p>
             </div>
@@ -1858,216 +1837,6 @@ export default function Dashboard() {
               >
                 {processando ? "Enviando..." : `Enviar Pedido - R$ ${pedidoAtual.reduce((acc, i) => acc + Number(i.preco || 0) * Number(i.quantidade || 0), 0).toFixed(2)}`}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isGerente && cozinhaAberta && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
-            <div className="p-4 md:p-6 border-b border-zinc-800 flex justify-between items-center shrink-0">
-              <h3 className="text-xl md:text-2xl font-black text-yellow-500 uppercase italic">🍳 Cozinha</h3>
-              <button onClick={() => setCozinhaAberta(false)} className="text-zinc-500 hover:text-zinc-300 text-2xl">✕</button>
-            </div>
-            <div className="p-4 md:p-6 overflow-y-auto flex-1 space-y-4">
-              {pedidosCozinha.length === 0 ? (
-                <p className="text-zinc-500 text-center py-8 font-bold uppercase text-sm">Nenhum pedido pendente.</p>
-              ) : (
-                pedidosCozinha.map((pedido) => (
-                  <div key={pedido.id} className="bg-zinc-950 border border-red-500/30 rounded-2xl overflow-hidden shadow-lg shadow-red-500/5">
-                    <div className="bg-red-500/10 p-4 border-b border-red-500/20 flex justify-between items-center">
-                      <div>
-                        <span className="bg-red-500 text-white font-black uppercase text-[10px] px-3 py-1 rounded-md">Mesa {pedido.mesa}</span>
-                        <p className="text-xs font-bold text-zinc-300 uppercase ml-2 inline">{pedido.cliente}</p>
-                      </div>
-                      <span className="text-xs font-black text-red-400">⏱ {pedido.hora}</span>
-                    </div>
-                    <div className="p-4 space-y-2">
-                      {pedido.itens.map((item: any, idx: number) => (
-                        <div key={idx} className="flex justify-between items-center bg-zinc-950 p-3 rounded-xl border border-zinc-800">
-                          <div className="flex items-center gap-3">
-                            <span className="text-xl font-black text-yellow-500 italic">x{item.quantidade}</span>
-                            <span className="font-bold text-sm uppercase text-zinc-200">{item.nome}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="p-4 border-t border-zinc-800 bg-zinc-950/50">
-                      <button onClick={() => finalizarPedidoCozinha(pedido.id)} disabled={processando} className="w-full bg-green-600 hover:bg-green-500 text-white font-black py-4 rounded-xl text-sm uppercase italic transition-all flex justify-center items-center gap-2 disabled:opacity-50">✅ {processando ? "Aguarde..." : "Finalizar e Entregar"}</button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {modalAberto && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-40 p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl">
-            <h3 className="text-xl md:text-2xl font-black text-yellow-500 uppercase italic text-center mb-6">Nova Mesa</h3>
-            <form onSubmit={abrirNovaMesa} className="space-y-4">
-              <div>
-                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Número da Mesa</label>
-                <input type="number" value={numeroMesa} onChange={(e) => setNumeroMesa(e.target.value)} placeholder="Ex: 5" disabled={mesaOcupada} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-yellow-500 outline-none disabled:opacity-50 disabled:cursor-not-allowed" required />
-              </div>
-              <div>
-                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Nome do Cliente</label>
-                <input type="text" value={clienteMesa} onChange={(e) => setClienteMesa(e.target.value)} placeholder="Ex: João" className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-yellow-500 outline-none" required />
-              </div>
-              <div className="flex gap-3 mt-6">
-                <button type="button" onClick={() => setModalAberto(false)} className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all">Cancelar</button>
-                <button type="submit" disabled={processando} className="flex-1 bg-yellow-500 text-zinc-950 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-yellow-400 transition-all disabled:opacity-50">{processando ? "Aguarde..." : "Abrir Mesa"}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {fichaAberta && mesaSelecionada && (
-        <div className="fixed inset-0 bg-black/60 z-30 flex justify-end">
-          <div className="bg-zinc-950 w-full md:max-w-md h-full overflow-y-auto border-l border-zinc-800 p-4 md:p-6 animate-in slide-in-from-right duration-300 flex flex-col">
-            <div className="flex justify-between items-start mb-6 shrink-0">
-              <div>
-                <h2 className="text-2xl md:text-3xl font-black text-yellow-500 italic uppercase">Mesa {mesaSelecionada.numero}</h2>
-                <p className="text-zinc-400 text-sm font-bold truncate max-w-[200px]">{mesaSelecionada.cliente}</p>
-              </div>
-              <button onClick={() => setFichaAberta(false)} className="text-zinc-500 hover:text-zinc-300 text-2xl p-2 -mr-2">✕</button>
-            </div>
-
-            <div className="space-y-3 mb-6 flex-1 overflow-y-auto">
-              {mesaSelecionada.itens && mesaSelecionada.itens.length > 0 ? (
-                mesaSelecionada.itens.map((item: any, idx: number) => (
-                  <div key={idx} className="flex justify-between items-center bg-zinc-900/50 p-3 rounded-xl border border-zinc-800/50">
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg font-black text-yellow-500 italic">x{item.quantidade}</span>
-                      <span className="font-bold text-xs md:text-sm uppercase text-zinc-200">{item.nome}</span>
-                    </div>
-                    <span className="text-zinc-400 font-bold text-xs shrink-0">R$ {(Number(item.preco || 0) * Number(item.quantidade || 0)).toFixed(2)}</span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-zinc-600 italic text-sm font-bold text-center py-6">Nenhum pedido ainda.</p>
-              )}
-            </div>
-
-            <div className="bg-zinc-900 p-4 rounded-2xl border border-zinc-800 mb-6 shrink-0">
-              <div className="flex justify-between items-center">
-                <span className="text-zinc-400 font-bold uppercase text-xs">Total</span>
-                <span className="text-2xl font-black text-yellow-500 italic">R$ {Number(mesaSelecionada.total || 0).toFixed(2)}</span>
-              </div>
-            </div>
-
-            <div className="space-y-3 shrink-0 pb-6">
-              <button onClick={() => { setCardapioAberto(true); setFichaAberta(false); }} className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-black py-4 rounded-xl uppercase tracking-widest text-xs transition-all">+ Adicionar Item</button>
-              <button onClick={() => imprimirComandaCozinha(mesaSelecionada)} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl uppercase tracking-widest text-xs transition-all">📄 Comanda Cozinha</button>
-              <button onClick={() => { setFichaAberta(false); abrirCheckout(mesaSelecionada); }} className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-xl uppercase tracking-widest text-xs transition-all">Fechar Conta</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {checkoutAberto && mesaSelecionada && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-4 md:p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl md:text-2xl font-black text-yellow-500 uppercase italic">Mesa {mesaSelecionada.numero}</h3>
-              <button onClick={() => setCheckoutAberto(false)} className="text-zinc-500 hover:text-zinc-300 text-2xl">✕</button>
-            </div>
-
-            <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 mb-6">
-              <p className="text-zinc-400 text-sm">Cliente: <span className="font-bold text-zinc-200">{mesaSelecionada.cliente}</span></p>
-              <p className="text-zinc-400 text-sm">Total da conta: <span className="font-bold text-yellow-500 text-xl md:text-2xl">R$ {Number(mesaSelecionada.total || 0).toFixed(2)}</span></p>
-            </div>
-
-            <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 mb-4">
-              <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block mb-2">Vincular Cliente (opcional)</label>
-              <div className="relative flex gap-2">
-                <div className="relative flex-1">
-                  <input
-                    type="text" placeholder="Buscar cliente..." value={buscaCliente}
-                    onChange={(e) => { setBuscaCliente(e.target.value); setClienteSelecionadoId(""); }}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-sm outline-none focus:border-yellow-500"
-                  />
-                  {buscaCliente && clientesFiltrados.length > 0 && !clienteSelecionadoId && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-zinc-800 border border-zinc-700 rounded-xl max-h-40 overflow-y-auto z-10 shadow-xl">
-                      {clientesFiltrados.map((c) => (
-                        <div key={c.id} onClick={() => selecionarCliente(c.id, c.nome)} className="px-3 py-3 hover:bg-zinc-700 cursor-pointer text-zinc-200 font-bold text-sm border-b border-zinc-700 last:border-none">{c.nome}</div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <button onClick={() => { setMostrarNovoCliente(!mostrarNovoCliente); if (!mostrarNovoCliente) { setClienteSelecionadoId(""); setBuscaCliente(""); } }} className="bg-pink-600 hover:bg-pink-500 text-white px-3 py-2 rounded-lg text-xs font-black uppercase transition-all shrink-0">+ Novo</button>
-              </div>
-              {clienteSelecionadoId && <p className="text-green-500 text-xs mt-2 font-bold">✓ Cliente selecionado</p>}
-              {mostrarNovoCliente && (
-                <div className="mt-3 p-3 bg-zinc-900 rounded-xl border border-pink-500/30 space-y-2 animate-in fade-in">
-                  <input type="text" placeholder="Nome *" value={novoClienteForm.nome} onChange={(e) => setNovoClienteForm({ ...novoClienteForm, nome: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-sm outline-none focus:border-pink-500" />
-                  <input type="text" placeholder="Telefone" value={novoClienteForm.telefone} onChange={(e) => setNovoClienteForm({ ...novoClienteForm, telefone: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-sm outline-none focus:border-pink-500" />
-                  <input type="email" placeholder="Email" value={novoClienteForm.email} onChange={(e) => setNovoClienteForm({ ...novoClienteForm, email: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-sm outline-none focus:border-pink-500" />
-                  <input type="date" value={novoClienteForm.data_nascimento} onChange={(e) => setNovoClienteForm({ ...novoClienteForm, data_nascimento: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-sm outline-none focus:border-pink-500" />
-                  <button onClick={criarClienteRapido} disabled={processando} className="w-full bg-pink-600 hover:bg-pink-500 text-white font-black py-2 rounded-lg text-sm uppercase transition-all disabled:opacity-50">{processando ? "Aguarde..." : "Cadastrar e vincular"}</button>
-                </div>
-              )}
-            </div>
-
-            <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 mb-4">
-              <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block mb-2">Dividir igual entre pessoas</label>
-              <div className="flex items-center gap-3">
-                <input type="number" min="1" max="20" value={numeroPessoas} onChange={(e) => setNumeroPessoas(Math.max(1, parseInt(e.target.value) || 1))} className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold w-16 md:w-20 text-center outline-none focus:border-yellow-500" />
-                <span className="text-zinc-400 text-xs md:text-sm">pessoas</span>
-                <button onClick={dividirIgualmente} className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-500 px-4 py-2 rounded-lg text-[10px] md:text-xs font-black uppercase transition-all whitespace-nowrap">Dividir</button>
-              </div>
-              {dividirIgual && <p className="text-green-500 text-xs mt-2 font-bold">✓ Valores divididos entre {numeroPessoas}</p>}
-            </div>
-
-            <div className="space-y-4 mb-6">
-              <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block">Formas de Pagamento</label>
-              {pagamentos.map((pag) => (
-                <div key={pag.id} className="flex flex-col md:flex-row items-center gap-3 bg-zinc-950 p-3 rounded-xl border border-zinc-800">
-                  <select value={pag.metodo} onChange={(e) => atualizarMetodoPagamento(pag.id, e.target.value)} className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-xs w-full md:w-32 outline-none focus:border-yellow-500">
-                    <option value="dinheiro">Dinheiro</option><option value="pix">PIX</option><option value="debito">Débito</option><option value="credito">Crédito</option>
-                  </select>
-                  <div className="flex w-full gap-2 items-center">
-                    <input type="number" step="0.01" min="0" value={pag.valor || ""} onChange={(e) => atualizarValorPagamento(pag.id, parseFloat(e.target.value) || 0)} placeholder="0,00" className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold w-full md:w-28 text-right outline-none focus:border-yellow-500" />
-                    {pagamentos.length > 1 && <button onClick={() => removerPagamento(pag.id)} className="text-red-500 hover:text-red-400 text-lg font-black shrink-0 px-2">✕</button>}
-                  </div>
-                  <button onClick={() => pagarParcela(pag.id)} disabled={processando} className="w-full md:w-auto bg-green-600 hover:bg-green-500 text-white px-3 py-2 rounded-lg text-[10px] md:text-xs font-black uppercase transition-all disabled:opacity-50">{processando ? "..." : "Pagar agora"}</button>
-                </div>
-              ))}
-              <button onClick={adicionarPagamento} className="text-yellow-500 hover:text-yellow-400 text-xs font-black uppercase transition-colors">+ Adicionar forma</button>
-            </div>
-
-            <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 space-y-2 mb-6">
-              <div className="flex justify-between"><span className="text-zinc-400 text-sm">Total Pago:</span><span className="font-bold text-green-500">R$ {totalPago.toFixed(2)}</span></div>
-              {saldoRestante > 0 && <div className="flex justify-between"><span className="text-zinc-400 text-sm">Saldo Restante:</span><span className="font-bold text-orange-500">R$ {saldoRestante.toFixed(2)}</span></div>}
-              {troco > 0 && <div className="flex justify-between"><span className="text-zinc-400 text-sm">Troco:</span><span className="font-bold text-blue-400">R$ {troco.toFixed(2)}</span></div>}
-            </div>
-
-            <div className="space-y-3 mb-6">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-orange-950/10 border border-orange-500/30 p-3 rounded-xl">
-                <div className="flex items-center gap-2">
-                  <input type="checkbox" id="fiadoAuto" checked={fiadoAutomatico} onChange={(e) => setFiadoAutomatico(e.target.checked)} className="accent-orange-500 w-4 h-4 shrink-0" />
-                  <label htmlFor="fiadoAuto" className="text-orange-400 text-xs md:text-sm font-bold leading-tight">Lançar saldo pendente no fiado</label>
-                </div>
-                {fiadoAutomatico && <input type="text" value={clienteNomeFiado} onChange={(e) => setClienteNomeFiado(e.target.value)} placeholder="Nome do devedor" className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1 text-zinc-200 text-sm w-full sm:w-40 outline-none focus:border-orange-500" />}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-col md:flex-row gap-3">
-                <button
-                  onClick={() => {
-                    const pagamentosAtuais = pagamentos.filter(p => p.valor > 0);
-                    if (pagamentosAtuais.length === 0) { alert("Não há pagamentos registrados."); return; }
-                    imprimirComandaCliente(mesaSelecionada, pagamentosAtuais);
-                  }}
-                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl text-base md:text-lg uppercase italic transition-all shadow-xl"
-                >🖨️ Imprimir Comprovante</button>
-              </div>
-              <button onClick={finalizarCheckout} disabled={processando} className="w-full bg-green-600 hover:bg-green-500 text-white font-black py-4 md:py-5 rounded-xl text-base md:text-lg uppercase italic transition-all shadow-xl disabled:opacity-50">{processando ? "Aguarde..." : "Finalizar Conta"}</button>
             </div>
           </div>
         </div>
