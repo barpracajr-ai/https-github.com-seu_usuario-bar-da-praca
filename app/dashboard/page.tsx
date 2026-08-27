@@ -187,7 +187,7 @@ export default function Dashboard() {
     }
   }
 
-  // ========== REALTIME SSOT (Blindagem contra itens duplicados e falhas de Null) ==========
+  // ========== REALTIME SSOT ==========
   useEffect(() => {
     if (!usuario) return;
 
@@ -1128,6 +1128,15 @@ export default function Dashboard() {
     } finally {
       setProcessando(false);
     }
+  }
+
+  // ========== FUNÇÃO CORRIGIDA: ABRIR GARÇONS ==========
+  function abrirGarcons() {
+    if (usuario?.role !== "gerente") {
+      alert("Apenas gerentes podem gerenciar garçons.");
+      return;
+    }
+    setModalGarcomAberto(true);
   }
 
   async function adicionarGarcom(e: React.FormEvent) {
