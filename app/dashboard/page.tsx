@@ -41,9 +41,8 @@ export default function Dashboard() {
   const [clientes, setClientes] = useState<any[]>([]);
   const [garcons, setGarcons] = useState<any[]>([]);
   const [carregando, setCarregando] = useState(true);
-  
-  const [processando, setProcessando] = useState(false);
 
+  // Estados dos modais
   const [modalAberto, setModalAberto] = useState(false);
   const [numeroMesa, setNumeroMesa] = useState("");
   const [clienteMesa, setClienteMesa] = useState("");
@@ -55,6 +54,7 @@ export default function Dashboard() {
   const [buscaProduto, setBuscaProduto] = useState("");
   const [cozinhaAberta, setCozinhaAberta] = useState(false);
 
+  // Estados do checkout
   const [checkoutAberto, setCheckoutAberto] = useState(false);
   const [pagamentos, setPagamentos] = useState<any[]>([
     { id: 1, metodo: "dinheiro", valor: 0 },
@@ -67,6 +67,7 @@ export default function Dashboard() {
   const [numeroPessoas, setNumeroPessoas] = useState(1);
   const [dividirIgual, setDividirIgual] = useState(false);
 
+  // Estados para clientes (checkout e modal)
   const [clienteSelecionadoId, setClienteSelecionadoId] = useState<string>("");
   const [buscaCliente, setBuscaCliente] = useState("");
   const [buscaClienteModal, setBuscaClienteModal] = useState(""); 
@@ -79,6 +80,7 @@ export default function Dashboard() {
   });
   const [clientesFiltrados, setClientesFiltrados] = useState<any[]>([]);
 
+  // Estados do gerenciador de fiados
   const [fiadosAberto, setFiadosAberto] = useState(false);
   const [fiadoSelecionado, setFiadoSelecionado] = useState<any>(null);
   const [itensSelecionadosFiado, setItensSelecionadosFiado] = useState<number[]>([]);
@@ -88,9 +90,11 @@ export default function Dashboard() {
   const [fiadoModalAberto, setFiadoModalAberto] = useState(false);
   const [valorPagamentoFiado, setValorPagamentoFiado] = useState(0);
 
+  // Estados para impressão (comanda térmica)
   const [comandaAberta, setComandaAberta] = useState(false);
   const [dadosComanda, setDadosComanda] = useState<any>(null);
 
+  // Estados para gerenciamento de estoque
   const [estoqueAberto, setEstoqueAberto] = useState(false);
   const [insumoEditando, setInsumoEditando] = useState<any>(null);
   const [formInsumo, setFormInsumo] = useState({
@@ -101,6 +105,7 @@ export default function Dashboard() {
   });
   const [modalInsumoAberto, setModalInsumoAberto] = useState(false);
 
+  // Estados para gerenciamento de produtos
   const [modalProdutoAberto, setModalProdutoAberto] = useState(false);
   const [produtoEditando, setProdutoEditando] = useState<any>(null);
   const [formProduto, setFormProduto] = useState({
@@ -111,15 +116,18 @@ export default function Dashboard() {
   const [receitaTemp, setReceitaTemp] = useState<any[]>([]);
   const [ingredienteTemp, setIngredienteTemp] = useState({ insumo_id: "", qtd: "" });
 
+  // Estados para adicionar garçom
   const [modalGarcomAberto, setModalGarcomAberto] = useState(false);
-  const [modalGarcomFormAberto, setModalGarcomFormAberto] = useState(false); 
+  const [modalGarcomFormAberto, setModalGarcomFormAberto] = useState(false);
   const [formGarcom, setFormGarcom] = useState({
     nome: "",
     email: "",
     senha: "",
     confirmarSenha: "",
   });
+  const [cadastrandoGarcom, setCadastrandoGarcom] = useState(false);
 
+  // Estados para gerenciamento de clientes
   const [modalClientesAberto, setModalClientesAberto] = useState(false);
   const [clienteEditando, setClienteEditando] = useState<any>(null);
   const [formCliente, setFormCliente] = useState({
@@ -130,9 +138,11 @@ export default function Dashboard() {
   });
   const [modalClienteFormAberto, setModalClienteFormAberto] = useState(false);
 
+  // Estado para aniversariantes
   const [modalAniversariantesAberto, setModalAniversariantesAberto] = useState(false);
   const [mesAniversario, setMesAniversario] = useState(new Date().getMonth() + 1);
 
+  // Carrega dados iniciais
   useEffect(() => {
     const user = localStorage.getItem("usuario");
     if (!user) {
@@ -151,33 +161,56 @@ export default function Dashboard() {
 
   async function carregarDados() {
     try {
-      const { data: mesasData, error: errMesas } = await supabase.from("mesas").select("*").eq("status", "ocupada").order("numero", { ascending: true });
-      if (errMesas) throw new Error(errMesas.message);
+      const { data: mesasData, error: errMesas } = await supabase
+        .from("mesas")
+        .select("*")
+        .eq("status", "ocupada")
+        .order("numero", { ascending: true });
+      if (errMesas) throw new Error("Erro ao buscar mesas: " + errMesas.message);
       setMesas(mesasData || []);
 
-      const { data: produtosData, error: errProdutos } = await supabase.from("produtos").select("*").order("nome");
-      if (errProdutos) throw new Error(errProdutos.message);
+      const { data: produtosData, error: errProdutos } = await supabase
+        .from("produtos")
+        .select("*")
+        .order("nome");
+      if (errProdutos) throw new Error("Erro ao buscar produtos: " + errProdutos.message);
       setProdutos(produtosData || []);
 
-      const { data: insumosData, error: errInsumos } = await supabase.from("insumos").select("*").order("nome");
-      if (errInsumos) throw new Error(errInsumos.message);
+      const { data: insumosData, error: errInsumos } = await supabase
+        .from("insumos")
+        .select("*")
+        .order("nome");
+      if (errInsumos) throw new Error("Erro ao buscar insumos: " + errInsumos.message);
       setInsumos(insumosData || []);
 
-      const { data: cozinhaData, error: errCozinha } = await supabase.from("pedidos_cozinha").select("*").order("created_at", { ascending: true });
-      if (errCozinha) throw new Error(errCozinha.message);
+      const { data: cozinhaData, error: errCozinha } = await supabase
+        .from("pedidos_cozinha")
+        .select("*")
+        .order("created_at", { ascending: true });
+      if (errCozinha) throw new Error("Erro ao buscar pedidos da cozinha: " + errCozinha.message);
       setPedidosCozinha(cozinhaData || []);
 
-      const { data: fiadosData, error: errFiados } = await supabase.from("fiados").select("*").order("data_criacao", { ascending: false });
-      if (errFiados) throw new Error(errFiados.message);
+      const { data: fiadosData, error: errFiados } = await supabase
+        .from("fiados")
+        .select("*")
+        .order("data_criacao", { ascending: false });
+      if (errFiados) throw new Error("Erro ao buscar fiados: " + errFiados.message);
       setFiados(fiadosData || []);
 
-      const { data: clientesData, error: errClientes } = await supabase.from("clientes").select("*").order("nome", { ascending: true });
-      if (errClientes) throw new Error(errClientes.message);
+      const { data: clientesData, error: errClientes } = await supabase
+        .from("clientes")
+        .select("*")
+        .order("nome", { ascending: true });
+      if (errClientes) throw new Error("Erro ao buscar clientes: " + errClientes.message);
       setClientes(clientesData || []);
       setClientesFiltrados(clientesData || []);
 
-      const { data: garconsData, error: errGarcons } = await supabase.from("usuarios").select("*").eq("role", "colaborador").order("nome", { ascending: true });
-      if (errGarcons) throw new Error(errGarcons.message);
+      const { data: garconsData, error: errGarcons } = await supabase
+        .from("usuarios")
+        .select("*")
+        .eq("role", "colaborador")
+        .order("nome", { ascending: true });
+      if (errGarcons) throw new Error("Erro ao buscar garçons: " + errGarcons.message);
       setGarcons(garconsData || []);
 
     } catch (err: any) {
@@ -187,6 +220,7 @@ export default function Dashboard() {
     }
   }
 
+  // ========== Realtime Blindado (Anti-Duplicação e Anti-Crash) ==========
   useEffect(() => {
     if (!usuario) return;
 
@@ -194,77 +228,91 @@ export default function Dashboard() {
       .channel("bar-praca-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "mesas" }, (payload) => {
           setMesas((prev) => {
-            const map = new Map((prev || []).map(m => [String(m.id), m]));
-            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-              if (payload.new.status === 'ocupada') {
-                map.set(String(payload.new.id), payload.new);
-              } else {
-                map.delete(String(payload.new.id));
-              }
-            } else if (payload.eventType === 'DELETE') {
-              map.delete(String(payload.old.id));
+            if (payload.eventType === 'INSERT') {
+              if (prev.some(m => String(m.id) === String(payload.new.id))) return prev;
+              return [...prev, payload.new].sort((a, b) => Number(a.numero) - Number(b.numero));
             }
-            return Array.from(map.values()).sort((a, b) => (Number(a.numero) || 0) - (Number(b.numero) || 0));
+            if (payload.eventType === 'UPDATE') {
+              if (payload.new.status !== 'ocupada') {
+                return prev.filter(m => String(m.id) !== String(payload.new.id));
+              }
+              const existe = prev.some(m => String(m.id) === String(payload.new.id));
+              if (existe) {
+                return prev.map(m => String(m.id) === String(payload.new.id) ? { ...m, ...payload.new } : m).sort((a, b) => Number(a.numero) - Number(b.numero));
+              }
+              return [...prev, payload.new].sort((a, b) => Number(a.numero) - Number(b.numero));
+            }
+            if (payload.eventType === 'DELETE') {
+              return prev.filter(m => String(m.id) !== String(payload.old.id));
+            }
+            return prev;
           });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "pedidos_cozinha" }, (payload) => {
           setPedidosCozinha((prev) => {
-            const map = new Map((prev || []).map(p => [String(p.id), p]));
-            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-              if (payload.eventType === 'INSERT' && !map.has(String(payload.new.id)) && usuario.role === "gerente") {
-                tocarSomAlerta();
-              }
-              map.set(String(payload.new.id), payload.new);
-            } else if (payload.eventType === 'DELETE') {
-              map.delete(String(payload.old.id));
+            if (payload.eventType === 'INSERT') {
+              if (prev.some(p => String(p.id) === String(payload.new.id))) return prev;
+              if (usuario.role === "gerente") tocarSomAlerta();
+              return [...prev, payload.new];
             }
-            return Array.from(map.values());
+            if (payload.eventType === 'UPDATE') {
+              return prev.map(p => String(p.id) === String(payload.new.id) ? { ...p, ...payload.new } : p);
+            }
+            if (payload.eventType === 'DELETE') {
+              return prev.filter(p => String(p.id) !== String(payload.old.id));
+            }
+            return prev;
           });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "fiados" }, (payload) => {
           setFiados((prev) => {
-            const map = new Map((prev || []).map(f => [String(f.id), f]));
-            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-              map.set(String(payload.new.id), payload.new);
-            } else if (payload.eventType === 'DELETE') {
-              map.delete(String(payload.old.id));
+            if (payload.eventType === 'INSERT') {
+              if (prev.some(f => String(f.id) === String(payload.new.id))) return prev;
+              return [payload.new, ...prev].sort((a, b) => new Date(b.data_criacao || 0).getTime() - new Date(a.data_criacao || 0).getTime());
             }
-            return Array.from(map.values()).sort((a, b) => new Date(b.data_criacao || 0).getTime() - new Date(a.data_criacao || 0).getTime());
+            if (payload.eventType === 'UPDATE') {
+              return prev.map(f => String(f.id) === String(payload.new.id) ? { ...f, ...payload.new } : f);
+            }
+            if (payload.eventType === 'DELETE') {
+              return prev.filter(f => String(f.id) !== String(payload.old.id));
+            }
+            return prev;
           });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "insumos" }, (payload) => {
           setInsumos((prev) => {
-            const map = new Map((prev || []).map(i => [String(i.id), i]));
-            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-              map.set(String(payload.new.id), payload.new);
-            } else if (payload.eventType === 'DELETE') {
-              map.delete(String(payload.old.id));
+            if (payload.eventType === 'INSERT') {
+              if (prev.some(i => String(i.id) === String(payload.new.id))) return prev;
+              return [...prev, payload.new].sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || "")));
             }
-            return Array.from(map.values()).sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || "")));
-          });
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "produtos" }, (payload) => {
-          setProdutos((prev) => {
-            const map = new Map((prev || []).map(p => [String(p.id), p]));
-            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-              map.set(String(payload.new.id), payload.new);
-            } else if (payload.eventType === 'DELETE') {
-              map.delete(String(payload.old.id));
+            if (payload.eventType === 'UPDATE') {
+              return prev.map(i => String(i.id) === String(payload.new.id) ? { ...i, ...payload.new } : i).sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || "")));
             }
-            return Array.from(map.values()).sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || "")));
+            if (payload.eventType === 'DELETE') {
+              return prev.filter(i => String(i.id) !== String(payload.old.id));
+            }
+            return prev;
           });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "clientes" }, (payload) => {
           setClientes((prev) => {
-            const map = new Map((prev || []).map(c => [String(c.id), c]));
-            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-              map.set(String(payload.new.id), payload.new);
-            } else if (payload.eventType === 'DELETE') {
-              map.delete(String(payload.old.id));
+            if (payload.eventType === 'INSERT') {
+              if (prev.some(c => String(c.id) === String(payload.new.id))) return prev;
+              const novos = [...prev, payload.new].sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || "")));
+              setClientesFiltrados(novos);
+              return novos;
             }
-            const novos = Array.from(map.values()).sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || "")));
-            setClientesFiltrados(novos);
-            return novos;
+            if (payload.eventType === 'UPDATE') {
+              const novos = prev.map(c => String(c.id) === String(payload.new.id) ? { ...c, ...payload.new } : c).sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || "")));
+              setClientesFiltrados(novos);
+              return novos;
+            }
+            if (payload.eventType === 'DELETE') {
+              const novos = prev.filter(c => String(c.id) !== String(payload.old.id));
+              setClientesFiltrados(novos);
+              return novos;
+            }
+            return prev;
           });
       })
       .subscribe();
@@ -274,17 +322,18 @@ export default function Dashboard() {
     };
   }, [usuario]);
 
+  // Sincronização Dinâmica Local
   useEffect(() => {
     if (mesaSelecionada) {
-      const atualizada = (mesas || []).find(m => String(m.id) === String(mesaSelecionada.id));
+      const atualizada = mesas.find(m => String(m.id) === String(mesaSelecionada.id));
       if (atualizada) setMesaSelecionada(atualizada);
-      else setMesaSelecionada(null); 
+      else setMesaSelecionada(null);
     }
   }, [mesas]);
 
   useEffect(() => {
     if (fiadoSelecionado) {
-      const atualizado = (fiados || []).find(f => String(f.id) === String(fiadoSelecionado.id));
+      const atualizado = fiados.find(f => String(f.id) === String(fiadoSelecionado.id));
       if (atualizado) {
         if (atualizado.total !== fiadoSelecionado.total || JSON.stringify(atualizado.itens) !== JSON.stringify(fiadoSelecionado.itens)) {
           const itensDesmembrados: any[] = [];
@@ -303,62 +352,90 @@ export default function Dashboard() {
     }
   }, [fiados]);
 
+  // Filtrar clientes no checkout
   useEffect(() => {
     if (!buscaCliente.trim()) {
-      setClientesFiltrados(clientes || []);
+      setClientesFiltrados(clientes);
     } else {
-      const filtrados = (clientes || []).filter(c =>
-        String(c?.nome || "").toLowerCase().includes(buscaCliente.toLowerCase())
+      const filtrados = clientes.filter(c =>
+        String(c.nome || "").toLowerCase().includes(buscaCliente.toLowerCase())
       );
       setClientesFiltrados(filtrados);
     }
   }, [buscaCliente, clientes]);
 
-  // ========== FUNÇÕES DE NEGÓCIO ==========
+  // ========== FUNÇÕES DE NEGÓCIO RESTAURADAS ==========
 
   async function abrirNovaMesa(e: React.FormEvent) {
     e.preventDefault();
-    if (processando) return;
     if (!numeroMesa || !clienteMesa) {
       alert("Preencha todos os campos.");
       return;
     }
+
     const num = parseInt(numeroMesa);
     if (isNaN(num) || num <= 0) {
       alert("Número de mesa inválido.");
       return;
     }
 
-    setProcessando(true);
     try {
-      const { data: mesaExistente, error: errBusca } = await supabase.from("mesas").select("*").eq("numero", num).maybeSingle();
+      const { data: mesaExistente, error: errBusca } = await supabase
+        .from("mesas")
+        .select("*")
+        .eq("numero", num)
+        .maybeSingle();
+
       if (errBusca) throw errBusca;
 
       if (mesaExistente) {
         if (mesaExistente.status === "ocupada") {
           alert("Esta mesa já está ocupada.");
-          setProcessando(false);
           return;
         }
-        const { error: errUpdate } = await supabase.from("mesas").update({ status: "ocupada", cliente: clienteMesa, total: 0, itens: [] }).eq("id", mesaExistente.id);
+        const { data: mesaAtualizada, error: errUpdate } = await supabase
+          .from("mesas")
+          .update({ status: "ocupada", cliente: clienteMesa, total: 0, itens: [] })
+          .eq("id", mesaExistente.id)
+          .select()
+          .single();
+
         if (errUpdate) throw errUpdate;
+
+        setMesas((prev) => {
+          if (prev.some(m => String(m.id) === String(mesaAtualizada.id))) {
+            return prev.map((m) => (String(m.id) === String(mesaAtualizada.id) ? mesaAtualizada : m)).sort((a, b) => Number(a.numero) - Number(b.numero));
+          }
+          return [...prev, mesaAtualizada].sort((a, b) => Number(a.numero) - Number(b.numero));
+        });
+
+        setModalAberto(false);
+        setNumeroMesa("");
+        setClienteMesa("");
       } else {
-        const { error: errInsert } = await supabase.from("mesas").insert([{ numero: num, status: "ocupada", cliente: clienteMesa, total: 0, itens: [] }]);
+        const { data: novaMesa, error: errInsert } = await supabase
+          .from("mesas")
+          .insert([{ numero: num, status: "ocupada", cliente: clienteMesa, total: 0, itens: [] }])
+          .select()
+          .single();
+
         if (errInsert) throw errInsert;
+
+        setMesas((prev) => {
+          if (prev.some(m => String(m.id) === String(novaMesa.id))) return prev;
+          return [...prev, novaMesa].sort((a, b) => Number(a.numero) - Number(b.numero));
+        });
+        setModalAberto(false);
+        setNumeroMesa("");
+        setClienteMesa("");
       }
-      
-      setModalAberto(false);
-      setNumeroMesa("");
-      setClienteMesa("");
     } catch (err: any) {
       alert("Erro ao abrir mesa: " + err.message);
-    } finally {
-      setProcessando(false);
     }
   }
 
   function abrirFicha(mesa: any) {
-    if (mesa?.status === "livre") {
+    if (mesa.status === "livre") {
       setNumeroMesa(String(mesa.numero || ""));
       setClienteMesa("");
       setModalAberto(true);
@@ -370,7 +447,7 @@ export default function Dashboard() {
 
   function adicionarItem(produto: any) {
     setPedidoAtual((prev) => {
-      const existente = (prev || []).find((i) => String(i.id) === String(produto?.id));
+      const existente = (prev || []).find((i) => String(i.id) === String(produto.id));
       if (existente) {
         return prev.map((i) =>
           String(i.id) === String(produto.id) ? { ...i, quantidade: Number(i.quantidade || 0) + 1 } : i
@@ -392,17 +469,17 @@ export default function Dashboard() {
     });
   }
 
+  // ========== ENVIAR PEDIDO COM BAIXA DE ESTOQUE ==========
   async function enviarPedido() {
     if (!mesaSelecionada || !pedidoAtual || pedidoAtual.length === 0) return;
-    if (processando) return;
 
     let faltaEstoque = false;
     for (const item of pedidoAtual) {
-      const produto = (produtos || []).find((p) => String(p.id) === String(item.id));
+      const produto = produtos.find((p) => String(p.id) === String(item.id));
       if (!produto || !produto.receita || !Array.isArray(produto.receita) || produto.receita.length === 0) continue;
 
       for (const ing of produto.receita) {
-        const insumo = (insumos || []).find((i) => String(i.id) === String(ing.insumo_id));
+        const insumo = insumos.find((i) => String(i.id) === String(ing.insumo_id));
         if (!insumo) continue;
         const qtdNecessaria = parseFloat(ing.qtd || "0") * Number(item.quantidade || 0);
         if (Number(insumo.estoque || 0) < qtdNecessaria) {
@@ -417,46 +494,57 @@ export default function Dashboard() {
       if (!continuar) return;
     }
 
-    setProcessando(true);
+    const totalRemessa = pedidoAtual.reduce((acc, i) => acc + Number(i.preco || 0) * Number(i.quantidade || 0), 0);
+    const totalNovo = Number(mesaSelecionada.total || 0) + totalRemessa;
+    const itensAntigos = Array.isArray(mesaSelecionada.itens) ? mesaSelecionada.itens : [];
+    let itensAtualizados = [...itensAntigos];
+
+    pedidoAtual.forEach((itemNovo: any) => {
+      const index = itensAtualizados.findIndex((i: any) => String(i.id) === String(itemNovo.id));
+      if (index >= 0) {
+        itensAtualizados[index].quantidade = Number(itensAtualizados[index].quantidade || 0) + Number(itemNovo.quantidade || 0);
+      } else {
+        itensAtualizados.push({ ...itemNovo });
+      }
+    });
+
+    const pedidoCozinha = {
+      id: Date.now().toString(),
+      mesa: String(mesaSelecionada.numero || ""),
+      cliente: mesaSelecionada.cliente || "",
+      itens: pedidoAtual,
+      hora: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+    };
+
     try {
-      const totalRemessa = pedidoAtual.reduce((acc, i) => acc + Number(i.preco || 0) * Number(i.quantidade || 0), 0);
-      const totalNovo = Number(mesaSelecionada.total || 0) + totalRemessa;
-      const itensAntigos = Array.isArray(mesaSelecionada.itens) ? mesaSelecionada.itens : [];
-      let itensAtualizados = [...itensAntigos];
+      const { error: errMesa } = await supabase
+        .from("mesas")
+        .update({ total: totalNovo, itens: itensAtualizados })
+        .eq("id", mesaSelecionada.id);
 
-      pedidoAtual.forEach((itemNovo: any) => {
-        const index = itensAtualizados.findIndex((i: any) => String(i.id) === String(itemNovo.id));
-        if (index >= 0) {
-          itensAtualizados[index].quantidade = Number(itensAtualizados[index].quantidade || 0) + Number(itemNovo.quantidade || 0);
-        } else {
-          itensAtualizados.push({ ...itemNovo });
-        }
-      });
-
-      const pedidoCozinha = {
-        mesa: String(mesaSelecionada.numero || ""),
-        cliente: mesaSelecionada.cliente || "",
-        itens: pedidoAtual,
-        hora: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-      };
-
-      const { error: errMesa } = await supabase.from("mesas").update({ total: totalNovo, itens: itensAtualizados }).eq("id", mesaSelecionada.id);
       if (errMesa) throw errMesa;
 
-      const { error: errCozinha } = await supabase.from("pedidos_cozinha").insert([pedidoCozinha]);
+      const { error: errCozinha } = await supabase
+        .from("pedidos_cozinha")
+        .insert([pedidoCozinha]);
+
       if (errCozinha) throw errCozinha;
 
       for (const item of pedidoAtual) {
-        const produto = (produtos || []).find((p) => String(p.id) === String(item.id));
+        const produto = produtos.find((p) => String(p.id) === String(item.id));
         if (!produto || !produto.receita || !Array.isArray(produto.receita) || produto.receita.length === 0) continue;
 
         for (const ing of produto.receita) {
-          const insumo = (insumos || []).find((i) => String(i.id) === String(ing.insumo_id));
+          const insumo = insumos.find((i) => String(i.id) === String(ing.insumo_id));
           if (!insumo) continue;
           const qtdUsada = parseFloat(ing.qtd || "0") * Number(item.quantidade || 0);
           const novoEstoque = Number(insumo.estoque || 0) - qtdUsada;
 
-          const { error: errEstoque } = await supabase.from("insumos").update({ estoque: novoEstoque }).eq("id", insumo.id);
+          const { error: errEstoque } = await supabase
+            .from("insumos")
+            .update({ estoque: novoEstoque })
+            .eq("id", insumo.id);
+
           if (errEstoque) throw errEstoque;
         }
       }
@@ -466,23 +554,20 @@ export default function Dashboard() {
       
     } catch (err: any) {
       alert("Erro ao enviar pedido: " + err.message);
-    } finally {
-      setProcessando(false);
     }
   }
 
   async function finalizarPedidoCozinha(id: string) {
-    if (processando) return;
-    setProcessando(true);
     try {
       const { error } = await supabase.from("pedidos_cozinha").delete().eq("id", id);
       if (error) throw error;
+      setPedidosCozinha((prev) => prev.filter((p) => String(p.id) !== String(id)));
     } catch (err: any) {
       alert("Erro ao finalizar pedido: " + err.message);
-    } finally {
-      setProcessando(false);
     }
   }
+
+  // ========== FUNÇÕES DO CHECKOUT ==========
 
   function abrirCheckout(mesa: any) {
     setMesaSelecionada(mesa);
@@ -498,14 +583,14 @@ export default function Dashboard() {
     setBuscaCliente("");
     setMostrarNovoCliente(false);
     setNovoClienteForm({ nome: "", telefone: "", email: "", data_nascimento: "" });
-    setClientesFiltrados(clientes || []);
+    setClientesFiltrados(clientes);
     setCheckoutAberto(true);
   }
 
   function selecionarCliente(id: string, nome: string) {
     setClienteSelecionadoId(id);
     setBuscaCliente(nome);
-    setClientesFiltrados(clientes || []);
+    setClientesFiltrados(clientes);
     setMostrarNovoCliente(false);
   }
 
@@ -579,7 +664,6 @@ export default function Dashboard() {
 
   async function pagarParcela(id: number) {
     if (!mesaSelecionada) return;
-    if (processando) return;
 
     const pagamento = pagamentos.find(p => String(p.id) === String(id));
     if (!pagamento) return;
@@ -595,13 +679,14 @@ export default function Dashboard() {
       return;
     }
 
-    setProcessando(true);
     try {
       const itensVenda = Array.isArray(mesaSelecionada.itens) ? mesaSelecionada.itens : [];
       const custoEstimado = valorPago * 0.4;
       const lucroEstimado = valorPago * 0.6;
 
-      const { error: errVenda } = await supabase.from("vendas").insert([{
+      const { error: errVenda } = await supabase
+        .from("vendas")
+        .insert([{
           total_venda: valorPago,
           custo_total: custoEstimado,
           lucro_total: lucroEstimado,
@@ -622,8 +707,21 @@ export default function Dashboard() {
         setCheckoutAberto(false);
         alert(`Pagamento de R$ ${valorPago.toFixed(2)} realizado. Mesa encerrada.`);
       } else {
-        const { error: errUpdate } = await supabase.from("mesas").update({ total: novoTotal }).eq("id", mesaSelecionada.id);
+        const { error: errUpdate } = await supabase
+          .from("mesas")
+          .update({ total: novoTotal })
+          .eq("id", mesaSelecionada.id);
+
         if (errUpdate) throw errUpdate;
+
+        setMesas(prev =>
+          prev.map(m =>
+            String(m.id) === String(mesaSelecionada.id)
+              ? { ...m, total: novoTotal }
+              : m
+          ).sort((a, b) => Number(a.numero) - Number(b.numero))
+        );
+        setMesaSelecionada((prev: any) => ({ ...prev, total: novoTotal }));
 
         const novosPagamentos = pagamentos.filter(p => String(p.id) !== String(id));
         setPagamentos(novosPagamentos);
@@ -632,29 +730,39 @@ export default function Dashboard() {
       }
     } catch (err: any) {
       alert("Erro ao registrar pagamento parcial: " + err.message);
-    } finally {
-      setProcessando(false);
     }
   }
 
+  // ===== FUNÇÃO PARA CRIAR NOVO CLIENTE RÁPIDO NO CHECKOUT =====
   async function criarClienteRapido() {
-    if (processando) return;
     const { nome, telefone, email, data_nascimento } = novoClienteForm;
     if (!nome.trim()) {
       alert("Informe o nome do cliente.");
       return;
     }
-    setProcessando(true);
     try {
-      const { data, error } = await supabase.from("clientes").insert([{
+      const { data, error } = await supabase
+        .from("clientes")
+        .insert([{
           nome: nome.trim(),
           telefone: telefone.trim() || null,
           email: email.trim() || null,
           data_nascimento: data_nascimento || null,
-        }]).select().single();
+        }])
+        .select()
+        .single();
 
       if (error) throw error;
 
+      setClientes(prev => {
+        if(prev.some(c => String(c.id) === String(data.id))) return prev;
+        return [...prev, data].sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || "")));
+      });
+      setClientesFiltrados(prev => {
+        if(prev.some(c => String(c.id) === String(data.id))) return prev;
+        return [...prev, data].sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || "")));
+      });
+      
       setClienteSelecionadoId(data.id);
       setBuscaCliente(data.nome);
       setMostrarNovoCliente(false);
@@ -662,25 +770,22 @@ export default function Dashboard() {
       alert("Cliente cadastrado e vinculado à conta!");
     } catch (err: any) {
       alert("Erro ao criar cliente: " + err.message);
-    } finally {
-      setProcessando(false);
     }
   }
 
+  // ===== FUNÇÃO FINALIZAR CHECKOUT =====
   async function finalizarCheckout() {
     if (!mesaSelecionada) return;
-    if (processando) return;
 
     const totalMesa = Number(mesaSelecionada.total || 0);
     const somaPago = totalPago;
 
     if (totalMesa === 0) {
-      setProcessando(true);
       await supabase.from("mesas").delete().eq("id", mesaSelecionada.id);
+      setMesas(prev => prev.filter(m => String(m.id) !== String(mesaSelecionada.id)));
       setMesaSelecionada(null);
       setFichaAberta(false);
       setCheckoutAberto(false);
-      setProcessando(false);
       alert("Mesa vazia removida com sucesso!");
       return;
     }
@@ -701,7 +806,6 @@ export default function Dashboard() {
       valorFiado = totalMesa;
     }
 
-    setProcessando(true);
     try {
       const itensVenda = Array.isArray(mesaSelecionada.itens) ? mesaSelecionada.itens : [];
 
@@ -710,7 +814,9 @@ export default function Dashboard() {
         const lucroEstimado = somaPago * 0.6;
         const clienteId = clienteSelecionadoId || null;
 
-        const { error: errVenda } = await supabase.from("vendas").insert([{
+        const { error: errVenda } = await supabase
+          .from("vendas")
+          .insert([{
             total_venda: somaPago,
             custo_total: custoEstimado,
             lucro_total: lucroEstimado,
@@ -726,7 +832,11 @@ export default function Dashboard() {
 
       if (valorFiado > 0.01) {
         const nomeFiado = clienteNomeFiado.trim().toUpperCase();
-        const { data: fiadoExistente } = await supabase.from("fiados").select("*").ilike("cliente_nome", nomeFiado).maybeSingle();
+        const { data: fiadoExistente } = await supabase
+          .from("fiados")
+          .select("*")
+          .ilike("cliente_nome", nomeFiado)
+          .maybeSingle();
 
         if (fiadoExistente) {
           const novoTotal = Number(fiadoExistente.total || 0) + valorFiado;
@@ -739,19 +849,30 @@ export default function Dashboard() {
               itensAtuais.push({ ...itemNovo });
             }
           });
-          const { error: errUpFiado } = await supabase.from("fiados").update({ total: novoTotal, itens: itensAtuais }).eq("id", fiadoExistente.id);
+          const { error: errUpFiado } = await supabase
+            .from("fiados")
+            .update({ total: novoTotal, itens: itensAtuais })
+            .eq("id", fiadoExistente.id);
+            
           if (errUpFiado) throw errUpFiado;
+          
         } else {
-          const { error: errInsert } = await supabase.from("fiados").insert([{
+          const { data: novoRegistro, error: errInsert } = await supabase
+            .from("fiados")
+            .insert([{
               cliente_nome: nomeFiado,
               total: valorFiado,
               itens: itensVenda,
-            }]);
+            }])
+            .select()
+            .single();
+            
           if (errInsert) throw errInsert;
         }
       }
 
       await supabase.from("mesas").delete().eq("id", mesaSelecionada.id);
+      setMesas(prev => prev.filter(m => String(m.id) !== String(mesaSelecionada.id)));
       setMesaSelecionada(null);
       setFichaAberta(false);
       setCheckoutAberto(false);
@@ -759,10 +880,10 @@ export default function Dashboard() {
       
     } catch (err: any) {
       alert("Erro ao finalizar conta: " + err.message);
-    } finally {
-      setProcessando(false);
     }
   }
+
+  // ========== FUNÇÕES DO GERENCIADOR DE FIADOS ==========
 
   function abrirFiados() {
     setFiadosAberto(true);
@@ -806,9 +927,7 @@ export default function Dashboard() {
     if (!item) return;
 
     if (!confirm(`Remover "${item.nome}" (R$ ${Number(item.preco || 0).toFixed(2)}) do fiado?`)) return;
-    if (processando) return;
 
-    setProcessando(true);
     try {
       const novosDesmembrados = fiadoSelecionado.itensDesmembrados.filter((_: any, i: number) => i !== idx);
       const itensAgrupados: any[] = [];
@@ -822,15 +941,23 @@ export default function Dashboard() {
       });
       const novoTotal = itensAgrupados.reduce((acc: any, i: any) => acc + (Number(i.preco || 0) * Number(i.quantidade || 0)), 0);
 
-      const { error } = await supabase.from("fiados").update({ itens: itensAgrupados, total: novoTotal }).eq("id", fiadoSelecionado.id);
+      const { error } = await supabase
+        .from("fiados")
+        .update({ itens: itensAgrupados, total: novoTotal })
+        .eq("id", fiadoSelecionado.id);
+
       if (error) throw error;
-      
+
+      setFiadoSelecionado((prev: any) => ({
+        ...prev,
+        itensDesmembrados: novosDesmembrados,
+        total: novoTotal,
+        itens: itensAgrupados,
+      }));
       setItensSelecionadosFiado([]);
       alert("Item removido do fiado.");
     } catch (err: any) {
       alert("Erro ao excluir item: " + err.message);
-    } finally {
-      setProcessando(false);
     }
   }
 
@@ -863,7 +990,6 @@ export default function Dashboard() {
 
   async function receberFiado() {
     if (!fiadoSelecionado) return;
-    if (processando) return;
 
     const totalPendente = Number(fiadoSelecionado.total || 0);
     const somaPago = pagamentosFiado.reduce((acc, p) => acc + (Number(p.valor) || 0), 0);
@@ -878,12 +1004,13 @@ export default function Dashboard() {
       return;
     }
 
-    setProcessando(true);
     try {
       const custoEstimado = somaPago * 0.4;
       const lucroEstimado = somaPago * 0.6;
 
-      const { error: errVenda } = await supabase.from("vendas").insert([{
+      const { error: errVenda } = await supabase
+        .from("vendas")
+        .insert([{
           total_venda: somaPago,
           custo_total: custoEstimado,
           lucro_total: lucroEstimado,
@@ -898,10 +1025,13 @@ export default function Dashboard() {
       const novoTotal = parseFloat((totalPendente - somaPago).toFixed(2));
 
       if (novoTotal <= 0.01) {
-        const { error: errDel } = await supabase.from("fiados").delete().eq("id", fiadoSelecionado.id);
-        if (errDel) throw errDel;
+        await supabase.from("fiados").delete().eq("id", fiadoSelecionado.id);
       } else {
-        const { error: errUpdate } = await supabase.from("fiados").update({ total: novoTotal }).eq("id", fiadoSelecionado.id);
+        const { error: errUpdate } = await supabase
+          .from("fiados")
+          .update({ total: novoTotal })
+          .eq("id", fiadoSelecionado.id);
+
         if (errUpdate) throw errUpdate;
       }
 
@@ -912,10 +1042,10 @@ export default function Dashboard() {
       alert(`Pagamento de R$ ${somaPago.toFixed(2)} recebido com sucesso!`);
     } catch (err: any) {
       alert("Erro ao receber fiado: " + err.message);
-    } finally {
-      setProcessando(false);
     }
   }
+
+  // ========== FUNÇÕES DE IMPRESSÃO ==========
 
   function imprimirComandaCozinha(mesa: any) {
     if (!mesa || !mesa.itens || mesa.itens.length === 0) {
@@ -944,6 +1074,8 @@ export default function Dashboard() {
     });
     setComandaAberta(true);
   }
+
+  // ========== FUNÇÕES DE GERENCIAMENTO DE ESTOQUE ==========
 
   function abrirEstoque() {
     if (usuario?.role !== "gerente") {
@@ -974,46 +1106,45 @@ export default function Dashboard() {
   }
 
   async function salvarInsumo() {
-    if (processando) return;
-    const { nome, unidade, estoque, custo_unidade } = formInsumo;
-    if (!nome || !unidade) {
-      alert("Nome e unidade são obrigatórios.");
-      return;
-    }
-    const estoqueNum = parseFloat(estoque) || 0;
-    const custoNum = parseFloat(custo_unidade) || 0;
-
-    setProcessando(true);
     try {
+      const { nome, unidade, estoque, custo_unidade } = formInsumo;
+      if (!nome || !unidade) {
+        alert("Nome e unidade são obrigatórios.");
+        return;
+      }
+      const estoqueNum = parseFloat(estoque) || 0;
+      const custoNum = parseFloat(custo_unidade) || 0;
+
       if (insumoEditando) {
-        const { error } = await supabase.from("insumos").update({ nome, unidade, estoque: estoqueNum, custo_unidade: custoNum }).eq("id", insumoEditando.id);
+        const { error } = await supabase
+          .from("insumos")
+          .update({ nome, unidade, estoque: estoqueNum, custo_unidade: custoNum })
+          .eq("id", insumoEditando.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("insumos").insert([{ nome, unidade, estoque: estoqueNum, custo_unidade: custoNum }]);
+        const { error } = await supabase
+          .from("insumos")
+          .insert([{ nome, unidade, estoque: estoqueNum, custo_unidade: custoNum }]);
         if (error) throw error;
       }
       setModalInsumoAberto(false);
-      alert("Insumo enviado para o banco com sucesso!");
+      alert("Insumo salvo com sucesso!");
     } catch (err: any) {
       alert("Erro ao salvar insumo: " + err.message);
-    } finally {
-      setProcessando(false);
     }
   }
 
   async function excluirInsumo(id: string) {
     if (!confirm("Deseja realmente excluir este insumo?")) return;
-    if (processando) return;
-    setProcessando(true);
     try {
       const { error } = await supabase.from("insumos").delete().eq("id", id);
       if (error) throw error;
     } catch (err: any) {
       alert("Erro ao excluir insumo: " + err.message);
-    } finally {
-      setProcessando(false);
     }
   }
+
+  // ========== FUNÇÕES DE GERENCIAMENTO DE PRODUTOS ==========
 
   function abrirNovoProduto() {
     if (usuario?.role !== "gerente") {
@@ -1082,56 +1213,54 @@ export default function Dashboard() {
   }
 
   async function salvarProduto() {
-    if (processando) return;
-    const { nome, categoria, preco } = formProduto;
-    if (!nome || !preco) {
-      alert("Preencha nome e preço.");
-      return;
-    }
-    const precoNum = parseFloat(preco) || 0;
-    const dados = {
-      nome,
-      categoria,
-      preco: precoNum,
-      receita: receitaTemp,
-    };
-
-    setProcessando(true);
     try {
+      const { nome, categoria, preco } = formProduto;
+      if (!nome || !preco) {
+        alert("Preencha nome e preço.");
+        return;
+      }
+      const precoNum = parseFloat(preco) || 0;
+      const dados = {
+        nome,
+        categoria,
+        preco: precoNum,
+        receita: receitaTemp,
+      };
+
       if (produtoEditando) {
-        const { error } = await supabase.from("produtos").update(dados).eq("id", produtoEditando.id);
+        const { error } = await supabase
+          .from("produtos")
+          .update(dados)
+          .eq("id", produtoEditando.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("produtos").insert([dados]);
+        const { error } = await supabase
+          .from("produtos")
+          .insert([dados]);
         if (error) throw error;
       }
       setModalProdutoAberto(false);
       alert("Produto salvo com sucesso!");
     } catch (err: any) {
       alert("Erro ao salvar produto: " + err.message);
-    } finally {
-      setProcessando(false);
     }
   }
 
   async function excluirProduto(id: string) {
     if (!confirm("Deseja realmente excluir este produto? Todos os dados de receita associados também serão removidos.")) return;
-    if (processando) return;
-    setProcessando(true);
+
     try {
       const { error } = await supabase.from("produtos").delete().eq("id", id);
       if (error) throw error;
       alert("Produto excluído com sucesso!");
     } catch (err: any) {
       alert("Erro ao excluir produto: " + err.message);
-    } finally {
-      setProcessando(false);
     }
   }
 
+  // ========== FUNÇÃO ADICIONAR GARÇOM ==========
   async function adicionarGarcom(e: React.FormEvent) {
     e.preventDefault();
-    if (processando) return;
     const { nome, email, senha, confirmarSenha } = formGarcom;
     if (!nome || !email || !senha || !confirmarSenha) {
       alert("Preencha todos os campos.");
@@ -1146,13 +1275,18 @@ export default function Dashboard() {
       return;
     }
 
-    setProcessando(true);
+    setCadastrandoGarcom(true);
+
     try {
-      const { data: usuarioExistente } = await supabase.from("usuarios").select("id").ilike("email", email.trim().toLowerCase()).maybeSingle();
+      const { data: usuarioExistente } = await supabase
+        .from("usuarios")
+        .select("id")
+        .ilike("email", email.trim().toLowerCase())
+        .maybeSingle();
 
       if (usuarioExistente) {
         alert("Este email já está cadastrado no sistema.");
-        setProcessando(false);
+        setCadastrandoGarcom(false);
         return;
       }
 
@@ -1163,46 +1297,47 @@ export default function Dashboard() {
 
       if (authError) {
         alert("Erro ao criar usuário na base Auth: " + authError.message);
-        setProcessando(false);
+        setCadastrandoGarcom(false);
         return;
       }
 
-      const { error: perfilError } = await supabase.from("usuarios").insert([{
+      const { error: perfilError } = await supabase
+        .from("usuarios")
+        .insert([{
           nome: nome.trim(),
           email: email.trim().toLowerCase(),
           role: "colaborador",
         }]);
 
       if (perfilError) {
-        alert("Erro ao criar perfil de usuário: " + perfilError.message);
-        setProcessando(false);
+        alert("Erro ao criar perfil: " + perfilError.message);
+        setCadastrandoGarcom(false);
         return;
       }
 
       alert("Garçom cadastrado com sucesso!");
       setModalGarcomFormAberto(false);
       setModalGarcomAberto(true);
+      setFormGarcom({ nome: "", email: "", senha: "", confirmarSenha: "" });
     } catch (err: any) {
       alert("Erro inesperado: " + err.message);
     } finally {
-      setProcessando(false);
+      setCadastrandoGarcom(false);
     }
   }
 
   async function excluirGarcom(id: string) {
     if (!confirm("Deseja realmente excluir este garçom? O acesso dele será revogado da tela do sistema.")) return;
-    if (processando) return;
-    setProcessando(true);
     try {
       const { error } = await supabase.from("usuarios").delete().eq("id", id);
       if (error) throw error;
       alert("Garçom removido com sucesso!");
     } catch (err: any) {
       alert("Erro ao excluir garçom: " + err.message);
-    } finally {
-      setProcessando(false);
     }
   }
+
+  // ========== FUNÇÕES DE GERENCIAMENTO DE CLIENTES ==========
 
   function abrirClientes() {
     if (usuario?.role !== "gerente") {
@@ -1232,25 +1367,28 @@ export default function Dashboard() {
 
   async function salvarCliente(e: React.FormEvent) {
     e.preventDefault();
-    if (processando) return;
     const { nome, telefone, email, data_nascimento } = formCliente;
     if (!nome.trim()) {
       alert("Nome é obrigatório.");
       return;
     }
 
-    setProcessando(true);
     try {
       if (clienteEditando) {
-        const { error } = await supabase.from("clientes").update({
+        const { error } = await supabase
+          .from("clientes")
+          .update({
             nome: nome.trim(),
             telefone: telefone.trim() || null,
             email: email.trim() || null,
             data_nascimento: data_nascimento || null,
-          }).eq("id", clienteEditando.id);
+          })
+          .eq("id", clienteEditando.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("clientes").insert([{
+        const { error } = await supabase
+          .from("clientes")
+          .insert([{
             nome: nome.trim(),
             telefone: telefone.trim() || null,
             email: email.trim() || null,
@@ -1265,31 +1403,25 @@ export default function Dashboard() {
       alert("Cliente salvo com sucesso!");
     } catch (err: any) {
       alert("Erro ao salvar cliente: " + err.message);
-    } finally {
-      setProcessando(false);
     }
   }
 
   async function excluirCliente(id: string) {
     if (!confirm("Deseja realmente excluir este cliente?")) return;
-    if (processando) return;
-    setProcessando(true);
     try {
       const { error } = await supabase.from("clientes").delete().eq("id", id);
       if (error) throw error;
     } catch (err: any) {
       alert("Erro ao excluir cliente: " + err.message);
-    } finally {
-      setProcessando(false);
     }
   }
 
+  // ========== EXCLUIR MESA COM DEVOLUÇÃO AO ESTOQUE ==========
   async function excluirMesa(mesa: any) {
     if (!confirm("Tem certeza que deseja excluir esta mesa?\nOs itens lançados serão devolvidos ao estoque e não poderão ser recuperados.")) return;
-    if (processando) return;
-    setProcessando(true);
+
     try {
-      const itensMesa = Array.isArray(mesa.itens) ? mesa.itens : [];
+      const itensMesa = mesa.itens || [];
       for (const item of itensMesa) {
         const produto = (produtos || []).find((p) => String(p.id) === String(item.id));
         if (!produto || !produto.receita || !Array.isArray(produto.receita) || produto.receita.length === 0) continue;
@@ -1300,22 +1432,34 @@ export default function Dashboard() {
           const qtdDevolver = parseFloat(ing.qtd || "0") * Number(item.quantidade || 0);
           const novoEstoque = Number(insumo.estoque || 0) + qtdDevolver;
 
-          const { error: errEstoque } = await supabase.from("insumos").update({ estoque: novoEstoque }).eq("id", insumo.id);
+          const { error: errEstoque } = await supabase
+            .from("insumos")
+            .update({ estoque: novoEstoque })
+            .eq("id", insumo.id);
+
           if (errEstoque) throw errEstoque;
         }
       }
 
-      const { error: errDelete } = await supabase.from("mesas").delete().eq("id", mesa.id);
+      const { error: errDelete } = await supabase
+        .from("mesas")
+        .delete()
+        .eq("id", mesa.id);
+
       if (errDelete) throw errDelete;
+
+      if (String(mesaSelecionada?.id) === String(mesa.id)) {
+        setFichaAberta(false);
+        setMesaSelecionada(null);
+      }
 
       alert("Mesa excluída e itens devolvidos ao estoque com sucesso!");
     } catch (err: any) {
       alert("Erro ao excluir a mesa: " + err.message);
-    } finally {
-      setProcessando(false);
     }
   }
 
+  // ========== FILTRO DE ANIVERSARIANTES ==========
   const aniversariantesFiltrados = (clientes || []).filter(c => {
     if (!c?.data_nascimento) return false;
     let month = "0";
@@ -1374,7 +1518,7 @@ export default function Dashboard() {
             </div>
             <div>
               <h1 className="text-lg md:text-xl font-bold text-yellow-500 italic uppercase leading-none">
-                Bar da Praça <span className="text-[10px] text-zinc-500 ml-1">v8.1</span>
+                Bar da Praça <span className="text-[10px] text-zinc-500 ml-1">v8.2</span>
               </h1>
               <p className="text-[10px] md:text-xs text-zinc-400 mt-1">Bem-vindo, {usuario?.nome || "Usuário"}</p>
             </div>
@@ -1426,7 +1570,7 @@ export default function Dashboard() {
                     <span className="text-3xl md:text-4xl font-black italic text-yellow-500 leading-none">{String(mesa.numero || "").padStart(2, "0")}</span>
                     <div className="flex flex-col md:flex-row items-end md:items-start gap-1 md:gap-2">
                       <span className="bg-yellow-500 text-zinc-950 text-[9px] md:text-[10px] font-black px-2 py-1 rounded-md uppercase text-right md:text-left truncate max-w-[80px] md:max-w-[120px]">{mesa.cliente}</span>
-                      <button onClick={(e) => { e.stopPropagation(); excluirMesa(mesa); }} disabled={processando} className="text-red-500 hover:text-red-400 p-1 bg-zinc-900 rounded-full transition-colors disabled:opacity-50" title="Excluir mesa">🗑️</button>
+                      <button onClick={(e) => { e.stopPropagation(); excluirMesa(mesa); }} className="text-red-500 hover:text-red-400 p-1 bg-zinc-900 rounded-full transition-colors" title="Excluir mesa">🗑️</button>
                     </div>
                   </div>
                   <div className="space-y-2 mt-2">
@@ -1442,6 +1586,7 @@ export default function Dashboard() {
         </div>
       </main>
 
+      {/* ========== MODAL ANIVERSARIANTES ========== */}
       {modalAniversariantesAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
@@ -1481,6 +1626,7 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* ========== MODAL CLIENTES ========== */}
       {modalClientesAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -1505,7 +1651,7 @@ export default function Dashboard() {
                       (clientesFiltradosModal || []).map((c) => (
                         <tr key={c.id} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
                           <td className="p-3 font-bold uppercase">{c.nome}</td><td className="p-3 text-zinc-400">{c.telefone || "-"}</td><td className="p-3 text-zinc-400">{c.email || "-"}</td><td className="p-3 text-zinc-400">{c.data_nascimento ? new Date(c.data_nascimento).toLocaleDateString() : "-"}</td>
-                          <td className="p-3 text-center space-x-2"><button onClick={() => abrirFormCliente(c)} className="text-blue-400 hover:text-blue-300 text-xs font-black uppercase">Editar</button><button onClick={() => excluirCliente(c.id)} disabled={processando} className="text-red-500 hover:text-red-400 text-xs font-black uppercase disabled:opacity-50">Excluir</button></td>
+                          <td className="p-3 text-center space-x-2"><button onClick={() => abrirFormCliente(c)} className="text-blue-400 hover:text-blue-300 text-xs font-black uppercase">Editar</button><button onClick={() => excluirCliente(c.id)} className="text-red-500 hover:text-red-400 text-xs font-black uppercase">Excluir</button></td>
                         </tr>
                       ))
                     )}
@@ -1517,6 +1663,7 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* MODAL FORMULÁRIO CLIENTE */}
       {modalClienteFormAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl p-4 md:p-6">
@@ -1528,13 +1675,14 @@ export default function Dashboard() {
               <div><label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Data de Nascimento</label><input type="date" value={formCliente.data_nascimento} onChange={(e) => setFormCliente({ ...formCliente, data_nascimento: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-pink-500 outline-none" /></div>
               <div className="flex gap-3 mt-6">
                 <button type="button" onClick={() => { setModalClienteFormAberto(false); setModalClientesAberto(true); setClienteEditando(null); }} className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all">Cancelar</button>
-                <button type="submit" disabled={processando} className="flex-1 bg-pink-600 hover:bg-pink-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all disabled:opacity-50">{processando ? "Aguarde..." : "Salvar"}</button>
+                <button type="submit" className="flex-1 bg-pink-600 hover:bg-pink-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all">Salvar</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
+      {/* ========== MODAL GARÇONS ========== */}
       {modalGarcomAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
@@ -1556,7 +1704,7 @@ export default function Dashboard() {
                       (garcons || []).map((g) => (
                         <tr key={g.id} className="border-b border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
                           <td className="p-3 font-bold uppercase">{g.nome}</td><td className="p-3 text-zinc-400">{g.email}</td>
-                          <td className="p-3 text-center"><button onClick={() => excluirGarcom(g.id)} disabled={processando} className="text-red-500 hover:text-red-400 text-xs font-black uppercase disabled:opacity-50">🗑️ Excluir Acesso</button></td>
+                          <td className="p-3 text-center"><button onClick={() => excluirGarcom(g.id)} className="text-red-500 hover:text-red-400 text-xs font-black uppercase">🗑️ Excluir Acesso</button></td>
                         </tr>
                       ))
                     )}
@@ -1579,13 +1727,14 @@ export default function Dashboard() {
               <div><label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Confirmar Senha</label><input type="password" value={formGarcom.confirmarSenha} onChange={(e) => setFormGarcom({ ...formGarcom, confirmarSenha: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-cyan-500 outline-none" required /></div>
               <div className="flex gap-3 mt-6">
                 <button type="button" onClick={() => { setModalGarcomFormAberto(false); setModalGarcomAberto(true); }} className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all">Cancelar</button>
-                <button type="submit" disabled={processando} className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all disabled:opacity-50">{processando ? "Aguarde..." : "Salvar"}</button>
+                <button type="submit" disabled={cadastrandoGarcom} className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all disabled:opacity-50">{cadastrandoGarcom ? "Aguarde..." : "Salvar"}</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
+      {/* ========== MODAL FIADOS ========== */}
       {isGerente && fiadosAberto && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
@@ -1652,11 +1801,12 @@ export default function Dashboard() {
               <div className="flex justify-between"><span className="text-zinc-400 text-sm">Total Pago:</span><span className="font-bold text-green-500">R$ {pagamentosFiado.reduce((acc, p) => acc + (Number(p.valor) || 0), 0).toFixed(2)}</span></div>
               {pagamentosFiado.reduce((acc, p) => acc + (Number(p.valor) || 0), 0) > 0 && (<div className="flex justify-between"><span className="text-zinc-400 text-sm">Saldo Restante:</span><span className="font-bold text-blue-400">R$ {(Number(fiadoSelecionado.total || 0) - pagamentosFiado.reduce((acc, p) => acc + (Number(p.valor) || 0), 0)).toFixed(2)}</span></div>)}
             </div>
-            <button onClick={receberFiado} disabled={processando} className="w-full bg-green-600 hover:bg-green-500 text-white font-black py-4 rounded-xl text-lg uppercase italic transition-all shadow-xl disabled:opacity-50">{processando ? "Aguarde..." : "Confirmar Recebimento"}</button>
+            <button onClick={receberFiado} className="w-full bg-green-600 hover:bg-green-500 text-white font-black py-4 rounded-xl text-lg uppercase italic transition-all shadow-xl">Confirmar Recebimento</button>
           </div>
         </div>
       )}
 
+      {/* ========== MODAL ESTOQUE ========== */}
       {isGerente && estoqueAberto && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
@@ -1677,7 +1827,7 @@ export default function Dashboard() {
                         <td className="p-3 font-bold uppercase">{i.nome}</td><td className="p-3 text-zinc-400">{i.unidade}</td><td className="p-3 text-right text-yellow-500 font-black">{i.estoque}</td><td className="p-3 text-right text-zinc-400">R$ {Number(i.custo_unidade || 0).toFixed(2)}</td>
                         <td className="p-3 text-center space-x-2">
                           <button onClick={() => abrirFormInsumo(i)} className="text-blue-400 hover:text-blue-300 text-xs font-black uppercase">Editar</button>
-                          <button onClick={() => excluirInsumo(i.id)} disabled={processando} className="text-red-500 hover:text-red-400 text-xs font-black uppercase disabled:opacity-50">Excluir</button>
+                          <button onClick={() => excluirInsumo(i.id)} className="text-red-500 hover:text-red-400 text-xs font-black uppercase">Excluir</button>
                         </td>
                       </tr>
                     ))}
@@ -1705,13 +1855,14 @@ export default function Dashboard() {
               <div><label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Custo por Unidade (R$)</label><input type="number" step="0.01" value={formInsumo.custo_unidade} onChange={(e) => setFormInsumo({ ...formInsumo, custo_unidade: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-emerald-500 outline-none" required /></div>
               <div className="flex gap-3 mt-6">
                 <button type="button" onClick={() => setModalInsumoAberto(false)} className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all">Cancelar</button>
-                <button type="submit" disabled={processando} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all disabled:opacity-50">{processando ? "Aguarde..." : "Salvar"}</button>
+                <button type="submit" className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all">Salvar</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
+      {/* ========== MODAL PRODUTOS ========== */}
       {isGerente && modalProdutoAberto && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-4 md:p-6">
@@ -1757,13 +1908,14 @@ export default function Dashboard() {
               </div>
               <div className="flex gap-3 mt-6">
                 <button type="button" onClick={() => setModalProdutoAberto(false)} className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all">Cancelar</button>
-                <button type="submit" disabled={processando} className="flex-1 bg-yellow-600 hover:bg-yellow-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all disabled:opacity-50">{processando ? "Aguarde..." : "Salvar Produto"}</button>
+                <button type="submit" className="flex-1 bg-yellow-600 hover:bg-yellow-500 text-white font-black py-3 rounded-xl text-sm uppercase tracking-widest transition-all">Salvar Produto</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
+      {/* ========== CARDÁPIO ========== */}
       {cardapioAberto && (
         <div className="fixed inset-0 bg-black/60 z-40 flex justify-start">
           <div className="bg-zinc-950 w-full md:max-w-md h-full overflow-y-auto border-r border-zinc-800 p-4 md:p-6 animate-in slide-in-from-left duration-300 flex flex-col">
@@ -1801,7 +1953,7 @@ export default function Dashboard() {
                           <div className="flex items-center gap-2 mt-1">
                             <button onClick={() => abrirEdicaoProduto(prod)} className="text-blue-400 hover:text-blue-300 text-[10px] font-black uppercase p-1 -ml-1">Editar</button>
                             <span className="text-zinc-600 text-[10px]">|</span>
-                            <button onClick={() => excluirProduto(prod.id)} disabled={processando} className="text-red-500 hover:text-red-400 text-[10px] font-black uppercase flex items-center gap-1 p-1 disabled:opacity-50">🗑️ Excluir</button>
+                            <button onClick={() => excluirProduto(prod.id)} className="text-red-500 hover:text-red-400 text-[10px] font-black uppercase flex items-center gap-1 p-1">🗑️ Excluir</button>
                           </div>
                         )}
                       </div>
@@ -1818,18 +1970,19 @@ export default function Dashboard() {
 
             <div className="mt-6 pt-4 border-t border-zinc-800 bg-zinc-950 sticky bottom-0 shrink-0">
               <button
-                onClick={enviarPedido} disabled={(pedidoAtual || []).length === 0 || processando}
-                className={`w-full font-black py-4 rounded-xl uppercase italic tracking-tighter text-base md:text-lg transition-all disabled:opacity-50 ${
+                onClick={enviarPedido} disabled={(pedidoAtual || []).length === 0}
+                className={`w-full font-black py-4 rounded-xl uppercase italic tracking-tighter text-base md:text-lg transition-all ${
                   (pedidoAtual || []).length > 0 ? "bg-yellow-500 text-zinc-950 hover:bg-yellow-400 shadow-xl" : "bg-zinc-800 text-zinc-500 cursor-not-allowed"
                 }`}
               >
-                {processando ? "Enviando..." : `Enviar Pedido - R$ ${(pedidoAtual || []).reduce((acc, i) => acc + Number(i.preco || 0) * Number(i.quantidade || 0), 0).toFixed(2)}`}
+                Enviar Pedido - R$ {(pedidoAtual || []).reduce((acc, i) => acc + Number(i.preco || 0) * Number(i.quantidade || 0), 0).toFixed(2)}
               </button>
             </div>
           </div>
         </div>
       )}
 
+      {/* ========== MODAL COZINHA ========== */}
       {isGerente && cozinhaAberta && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
@@ -1861,7 +2014,7 @@ export default function Dashboard() {
                       )) : null}
                     </div>
                     <div className="p-4 border-t border-zinc-800 bg-zinc-950/50">
-                      <button onClick={() => finalizarPedidoCozinha(pedido.id)} disabled={processando} className="w-full bg-green-600 hover:bg-green-500 text-white font-black py-4 rounded-xl text-sm uppercase italic transition-all flex justify-center items-center gap-2 disabled:opacity-50">✅ {processando ? "Aguarde..." : "Finalizar e Entregar"}</button>
+                      <button onClick={() => finalizarPedidoCozinha(pedido.id)} className="w-full bg-green-600 hover:bg-green-500 text-white font-black py-4 rounded-xl text-sm uppercase italic transition-all flex justify-center items-center gap-2">✅ Finalizar e Entregar</button>
                     </div>
                   </div>
                 ))
@@ -1871,6 +2024,7 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* ========== MODAL NOVA MESA ========== */}
       {modalAberto && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-40 p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl">
@@ -1886,13 +2040,14 @@ export default function Dashboard() {
               </div>
               <div className="flex gap-3 mt-6">
                 <button type="button" onClick={() => setModalAberto(false)} className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all">Cancelar</button>
-                <button type="submit" disabled={processando} className="flex-1 bg-yellow-500 text-zinc-950 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-yellow-400 transition-all disabled:opacity-50">{processando ? "Aguarde..." : "Abrir Mesa"}</button>
+                <button type="submit" className="flex-1 bg-yellow-500 text-zinc-950 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-yellow-400 transition-all">Abrir Mesa</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
+      {/* ========== FICHA DA MESA ========== */}
       {fichaAberta && mesaSelecionada && (
         <div className="fixed inset-0 bg-black/60 z-30 flex justify-end">
           <div className="bg-zinc-950 w-full md:max-w-md h-full overflow-y-auto border-l border-zinc-800 p-4 md:p-6 animate-in slide-in-from-right duration-300 flex flex-col">
@@ -1936,6 +2091,7 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* ========== CHECKOUT MODAL ========== */}
       {checkoutAberto && mesaSelecionada && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-4 md:p-6">
@@ -1949,7 +2105,6 @@ export default function Dashboard() {
               <p className="text-zinc-400 text-sm">Total da conta: <span className="font-bold text-yellow-500 text-xl md:text-2xl">R$ {Number(mesaSelecionada.total || 0).toFixed(2)}</span></p>
             </div>
 
-            {/* Vincular Cliente */}
             <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 mb-4">
               <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block mb-2">Vincular Cliente (opcional)</label>
               <div className="relative flex gap-2">
@@ -1976,7 +2131,7 @@ export default function Dashboard() {
                   <input type="text" placeholder="Telefone" value={novoClienteForm.telefone} onChange={(e) => setNovoClienteForm({ ...novoClienteForm, telefone: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-sm outline-none focus:border-pink-500" />
                   <input type="email" placeholder="Email" value={novoClienteForm.email} onChange={(e) => setNovoClienteForm({ ...novoClienteForm, email: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-sm outline-none focus:border-pink-500" />
                   <input type="date" value={novoClienteForm.data_nascimento} onChange={(e) => setNovoClienteForm({ ...novoClienteForm, data_nascimento: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-sm outline-none focus:border-pink-500" />
-                  <button onClick={criarClienteRapido} disabled={processando} className="w-full bg-pink-600 hover:bg-pink-500 text-white font-black py-2 rounded-lg text-sm uppercase transition-all disabled:opacity-50">{processando ? "Aguarde..." : "Cadastrar e vincular"}</button>
+                  <button onClick={criarClienteRapido} className="w-full bg-pink-600 hover:bg-pink-500 text-white font-black py-2 rounded-lg text-sm uppercase transition-all">Cadastrar e vincular</button>
                 </div>
               )}
             </div>
@@ -2002,7 +2157,7 @@ export default function Dashboard() {
                     <input type="number" step="0.01" min="0" value={pag.valor || ""} onChange={(e) => atualizarValorPagamento(pag.id, parseFloat(e.target.value) || 0)} placeholder="0,00" className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold w-full md:w-28 text-right outline-none focus:border-yellow-500" />
                     {(pagamentos || []).length > 1 && <button onClick={() => removerPagamento(pag.id)} className="text-red-500 hover:text-red-400 text-lg font-black shrink-0 px-2">✕</button>}
                   </div>
-                  <button onClick={() => pagarParcela(pag.id)} disabled={processando} className="w-full md:w-auto bg-green-600 hover:bg-green-500 text-white px-3 py-2 rounded-lg text-[10px] md:text-xs font-black uppercase transition-all disabled:opacity-50">{processando ? "..." : "Pagar agora"}</button>
+                  <button onClick={() => pagarParcela(pag.id)} className="w-full md:w-auto bg-green-600 hover:bg-green-500 text-white px-3 py-2 rounded-lg text-[10px] md:text-xs font-black uppercase transition-all">Pagar agora</button>
                 </div>
               ))}
               <button onClick={adicionarPagamento} className="text-yellow-500 hover:text-yellow-400 text-xs font-black uppercase transition-colors">+ Adicionar forma</button>
@@ -2025,7 +2180,7 @@ export default function Dashboard() {
             </div>
 
             <div className="flex flex-col gap-3">
-              <button onClick={finalizarCheckout} disabled={processando} className="w-full bg-green-600 hover:bg-green-500 text-white font-black py-4 md:py-5 rounded-xl text-base md:text-lg uppercase italic transition-all shadow-xl disabled:opacity-50">{processando ? "Aguarde..." : "Finalizar Conta"}</button>
+              <button onClick={finalizarCheckout} className="w-full bg-green-600 hover:bg-green-500 text-white font-black py-4 md:py-5 rounded-xl text-base md:text-lg uppercase italic transition-all shadow-xl">Finalizar Conta</button>
             </div>
           </div>
         </div>
