@@ -187,7 +187,7 @@ export default function Dashboard() {
     }
   }
 
-  // ========== REALTIME BLINDADO (Anti-Duplicação Otimizada) ==========
+  // ========== REALTIME SSOT (Blindagem contra itens duplicados e falhas de Null) ==========
   useEffect(() => {
     if (!usuario) return;
 
@@ -1375,7 +1375,7 @@ export default function Dashboard() {
             </div>
             <div>
               <h1 className="text-lg md:text-xl font-bold text-yellow-500 italic uppercase leading-none">
-                Bar da Praça <span className="text-[10px] text-zinc-500 ml-1">v6.0</span>
+                Bar da Praça <span className="text-[10px] text-zinc-500 ml-1">v8.0</span>
               </h1>
               <p className="text-[10px] md:text-xs text-zinc-400 mt-1">Bem-vindo, {usuario?.nome || "Usuário"}</p>
             </div>
@@ -1635,14 +1635,14 @@ export default function Dashboard() {
             </div>
             <div className="space-y-4 mb-6">
               <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block">Formas de Pagamento</label>
-              {pagamentosFiado.map((pag) => (
+              {(pagamentosFiado || []).map((pag) => (
                 <div key={pag.id} className="flex flex-col md:flex-row items-center gap-3 bg-zinc-950 p-3 rounded-xl border border-zinc-800">
                   <select value={pag.metodo} onChange={(e) => atualizarMetodoPagamentoFiado(pag.id, e.target.value)} className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-xs w-full md:w-32 outline-none focus:border-orange-500">
                     <option value="dinheiro">Dinheiro</option><option value="pix">PIX</option><option value="debito">Cartão Débito</option><option value="credito">Cartão Crédito</option>
                   </select>
                   <div className="flex w-full gap-2 items-center">
                     <input type="number" step="0.01" min="0" value={pag.valor || ""} onChange={(e) => { const val = parseFloat(e.target.value) || 0; atualizarValorPagamentoFiado(pag.id, val); }} placeholder="0,00" className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold w-full md:w-28 text-right outline-none focus:border-orange-500" />
-                    {pagamentosFiado.length > 1 && (<button onClick={() => removerPagamentoFiado(pag.id)} className="text-red-500 hover:text-red-400 text-lg font-black shrink-0 px-2">✕</button>)}
+                    {(pagamentosFiado || []).length > 1 && (<button onClick={() => removerPagamentoFiado(pag.id)} className="text-red-500 hover:text-red-400 text-lg font-black shrink-0 px-2">✕</button>)}
                   </div>
                 </div>
               ))}
@@ -1819,12 +1819,12 @@ export default function Dashboard() {
 
             <div className="mt-6 pt-4 border-t border-zinc-800 bg-zinc-950 sticky bottom-0 shrink-0">
               <button
-                onClick={enviarPedido} disabled={pedidoAtual.length === 0 || processando}
+                onClick={enviarPedido} disabled={(pedidoAtual || []).length === 0 || processando}
                 className={`w-full font-black py-4 rounded-xl uppercase italic tracking-tighter text-base md:text-lg transition-all disabled:opacity-50 ${
-                  pedidoAtual.length > 0 ? "bg-yellow-500 text-zinc-950 hover:bg-yellow-400 shadow-xl" : "bg-zinc-800 text-zinc-500 cursor-not-allowed"
+                  (pedidoAtual || []).length > 0 ? "bg-yellow-500 text-zinc-950 hover:bg-yellow-400 shadow-xl" : "bg-zinc-800 text-zinc-500 cursor-not-allowed"
                 }`}
               >
-                {processando ? "Enviando..." : `Enviar Pedido - R$ ${pedidoAtual.reduce((acc, i) => acc + Number(i.preco || 0) * Number(i.quantidade || 0), 0).toFixed(2)}`}
+                {processando ? "Enviando..." : `Enviar Pedido - R$ ${(pedidoAtual || []).reduce((acc, i) => acc + Number(i.preco || 0) * Number(i.quantidade || 0), 0).toFixed(2)}`}
               </button>
             </div>
           </div>
@@ -1906,7 +1906,7 @@ export default function Dashboard() {
             </div>
 
             <div className="space-y-3 mb-6 flex-1 overflow-y-auto">
-              {mesaSelecionada.itens && Array.isArray(mesaSelecionada.itens) && mesaSelecionada.itens.length > 0 ? (
+              {mesaSelecionada?.itens && Array.isArray(mesaSelecionada.itens) && mesaSelecionada.itens.length > 0 ? (
                 mesaSelecionada.itens.map((item: any, idx: number) => (
                   <div key={idx} className="flex justify-between items-center bg-zinc-900/50 p-3 rounded-xl border border-zinc-800/50">
                     <div className="flex items-center gap-3">
@@ -1950,6 +1950,7 @@ export default function Dashboard() {
               <p className="text-zinc-400 text-sm">Total da conta: <span className="font-bold text-yellow-500 text-xl md:text-2xl">R$ {Number(mesaSelecionada.total || 0).toFixed(2)}</span></p>
             </div>
 
+            {/* Vincular Cliente */}
             <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 mb-4">
               <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block mb-2">Vincular Cliente (opcional)</label>
               <div className="relative flex gap-2">
@@ -2032,8 +2033,8 @@ export default function Dashboard() {
                     if (pagamentosAtuais.length === 0) { alert("Não há pagamentos registrados."); return; }
                     imprimirComandaCliente(mesaSelecionada, pagamentosAtuais);
                   }}
-                  className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl text-xs md:text-sm uppercase italic transition-all"
-                >🖨️ Imprimir</button>
+                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl text-base md:text-lg uppercase italic transition-all shadow-xl"
+                >🖨️ Imprimir Comprovante</button>
               </div>
               <button onClick={finalizarCheckout} disabled={processando} className="w-full bg-green-600 hover:bg-green-500 text-white font-black py-4 md:py-5 rounded-xl text-base md:text-lg uppercase italic transition-all shadow-xl disabled:opacity-50">{processando ? "Aguarde..." : "Finalizar Conta"}</button>
             </div>
