@@ -314,6 +314,8 @@ export default function Dashboard() {
     }
   }, [buscaCliente, clientes]);
 
+  // ========== FUNÇÕES DE NEGÓCIO ==========
+
   async function abrirNovaMesa(e: React.FormEvent) {
     e.preventDefault();
     if (processando) return;
@@ -432,6 +434,7 @@ export default function Dashboard() {
       });
 
       const pedidoCozinha = {
+        id: Date.now().toString(), // Geração de ID adicionada de volta
         mesa: String(mesaSelecionada.numero || ""),
         cliente: mesaSelecionada.cliente || "",
         itens: pedidoAtual,
@@ -1373,7 +1376,7 @@ export default function Dashboard() {
             </div>
             <div>
               <h1 className="text-lg md:text-xl font-bold text-yellow-500 italic uppercase leading-none">
-                Bar da Praça <span className="text-[10px] text-zinc-500 ml-1">v9.0</span>
+                Bar da Praça <span className="text-[10px] text-zinc-500 ml-1">v9.1</span>
               </h1>
               <p className="text-[10px] md:text-xs text-zinc-400 mt-1">Bem-vindo, {usuario?.nome || "Usuário"}</p>
             </div>
@@ -1695,7 +1698,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* MODAL FORMULÁRIO INSUMO */}
       {isGerente && modalInsumoAberto && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl p-4 md:p-6">
@@ -1772,7 +1774,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== CARDÁPIO (Mesa) ========== */}
       {cardapioAberto && (
         <div className="fixed inset-0 bg-black/60 z-40 flex justify-start">
           <div className="bg-zinc-950 w-full md:max-w-md h-full overflow-y-auto border-r border-zinc-800 p-4 md:p-6 animate-in slide-in-from-left duration-300 flex flex-col">
@@ -1881,7 +1882,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== MODAL NOVA MESA ========== */}
       {modalAberto && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-40 p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl">
@@ -1904,7 +1904,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== FICHA DA MESA ========== */}
       {fichaAberta && mesaSelecionada && (
         <div className="fixed inset-0 bg-black/60 z-30 flex justify-end">
           <div className="bg-zinc-950 w-full md:max-w-md h-full overflow-y-auto border-l border-zinc-800 p-4 md:p-6 animate-in slide-in-from-right duration-300 flex flex-col">
@@ -1948,7 +1947,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== CHECKOUT MODAL ========== */}
       {checkoutAberto && mesaSelecionada && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-4 md:p-6">
