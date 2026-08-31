@@ -44,7 +44,6 @@ export default function Dashboard() {
   
   const [processando, setProcessando] = useState(false);
 
-  // Estados dos modais principais
   const [modalAberto, setModalAberto] = useState(false);
   const [numeroMesa, setNumeroMesa] = useState("");
   const [clienteMesa, setClienteMesa] = useState("");
@@ -56,11 +55,9 @@ export default function Dashboard() {
   const [buscaProduto, setBuscaProduto] = useState("");
   const [cozinhaAberta, setCozinhaAberta] = useState(false);
 
-  // Estados de Juntar Mesas
   const [modalJuntarAberto, setModalJuntarAberto] = useState(false);
   const [mesaParaJuntar, setMesaParaJuntar] = useState("");
 
-  // Estados do checkout
   const [checkoutAberto, setCheckoutAberto] = useState(false);
   const [pagamentos, setPagamentos] = useState<any[]>([
     { id: 1, metodo: "dinheiro", valor: 0, clienteFiado: "" },
@@ -85,7 +82,6 @@ export default function Dashboard() {
   });
   const [clientesFiltrados, setClientesFiltrados] = useState<any[]>([]);
 
-  // Estados do gerenciador de fiados
   const [fiadosAberto, setFiadosAberto] = useState(false);
   const [fiadoSelecionado, setFiadoSelecionado] = useState<any>(null);
   const [itensSelecionadosFiado, setItensSelecionadosFiado] = useState<number[]>([]);
@@ -95,11 +91,9 @@ export default function Dashboard() {
   const [fiadoModalAberto, setFiadoModalAberto] = useState(false);
   const [valorPagamentoFiado, setValorPagamentoFiado] = useState(0);
 
-  // Estados para impressão
   const [comandaAberta, setComandaAberta] = useState(false);
   const [dadosComanda, setDadosComanda] = useState<any>(null);
 
-  // Estados para gerenciamento de estoque
   const [estoqueAberto, setEstoqueAberto] = useState(false);
   const [insumoEditando, setInsumoEditando] = useState<any>(null);
   const [formInsumo, setFormInsumo] = useState({
@@ -110,7 +104,6 @@ export default function Dashboard() {
   });
   const [modalInsumoAberto, setModalInsumoAberto] = useState(false);
 
-  // Estados para gerenciamento de produtos
   const [modalProdutoAberto, setModalProdutoAberto] = useState(false);
   const [produtoEditando, setProdutoEditando] = useState<any>(null);
   const [formProduto, setFormProduto] = useState({
@@ -121,7 +114,6 @@ export default function Dashboard() {
   const [receitaTemp, setReceitaTemp] = useState<any[]>([]);
   const [ingredienteTemp, setIngredienteTemp] = useState({ insumo_id: "", qtd: "" });
 
-  // Estados para adicionar garçom
   const [modalGarcomAberto, setModalGarcomAberto] = useState(false);
   const [modalGarcomFormAberto, setModalGarcomFormAberto] = useState(false); 
   const [formGarcom, setFormGarcom] = useState({
@@ -198,7 +190,6 @@ export default function Dashboard() {
     }
   }
 
-  // ========== REALTIME BLINDADO ==========
   useEffect(() => {
     if (!usuario) return;
 
@@ -331,8 +322,6 @@ export default function Dashboard() {
     }
   }, [buscaCliente, clientes]);
 
-  // ========== FUNÇÕES DE NEGÓCIO ==========
-
   async function abrirNovaMesa(e: React.FormEvent) {
     e.preventDefault();
     if (processando) return;
@@ -353,7 +342,7 @@ export default function Dashboard() {
 
       if (mesaExistente) {
         if (mesaExistente.status === "ocupada") {
-          alert("Esta mesa já está aberta no salão. Escolha outro número de mesa para continuar.");
+          alert("Esta mesa já está ocupada no salão. Verifique o número digitado.");
           setProcessando(false);
           return;
         }
@@ -410,7 +399,6 @@ export default function Dashboard() {
       const { error: errB } = await supabase.from("mesas").delete().eq("id", mesaB.id);
       if (errB) throw errB;
 
-      setMesaSelecionada({ ...mesaSelecionada, total: novoTotal, itens: novosItens });
       setModalJuntarAberto(false);
       setMesaParaJuntar("");
       alert("Mesas unificadas com sucesso!");
@@ -1502,7 +1490,7 @@ export default function Dashboard() {
             </div>
             <div>
               <h1 className="text-lg md:text-xl font-bold text-yellow-500 italic uppercase leading-none">
-                Bar da Praça <span className="text-[10px] text-zinc-500 ml-1">v10.2</span>
+                Bar da Praça <span className="text-[10px] text-zinc-500 ml-1">v11.0</span>
               </h1>
               <p className="text-[10px] md:text-xs text-zinc-400 mt-1">Bem-vindo, {usuario?.nome || "Usuário"}</p>
             </div>
