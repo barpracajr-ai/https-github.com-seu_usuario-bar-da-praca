@@ -44,6 +44,7 @@ export default function Dashboard() {
   
   const [processando, setProcessando] = useState(false);
 
+  // Estados dos modais principais
   const [modalAberto, setModalAberto] = useState(false);
   const [numeroMesa, setNumeroMesa] = useState("");
   const [clienteMesa, setClienteMesa] = useState("");
@@ -55,9 +56,14 @@ export default function Dashboard() {
   const [buscaProduto, setBuscaProduto] = useState("");
   const [cozinhaAberta, setCozinhaAberta] = useState(false);
 
+  // Estados de Juntar Mesas
+  const [modalJuntarAberto, setModalJuntarAberto] = useState(false);
+  const [mesaParaJuntar, setMesaParaJuntar] = useState("");
+
+  // Estados do checkout
   const [checkoutAberto, setCheckoutAberto] = useState(false);
   const [pagamentos, setPagamentos] = useState<any[]>([
-    { id: 1, metodo: "dinheiro", valor: 0 },
+    { id: 1, metodo: "dinheiro", valor: 0, clienteFiado: "" },
   ]);
   const [totalPago, setTotalPago] = useState(0);
   const [saldoRestante, setSaldoRestante] = useState(0);
@@ -79,6 +85,7 @@ export default function Dashboard() {
   });
   const [clientesFiltrados, setClientesFiltrados] = useState<any[]>([]);
 
+  // Estados do gerenciador de fiados
   const [fiadosAberto, setFiadosAberto] = useState(false);
   const [fiadoSelecionado, setFiadoSelecionado] = useState<any>(null);
   const [itensSelecionadosFiado, setItensSelecionadosFiado] = useState<number[]>([]);
@@ -88,9 +95,11 @@ export default function Dashboard() {
   const [fiadoModalAberto, setFiadoModalAberto] = useState(false);
   const [valorPagamentoFiado, setValorPagamentoFiado] = useState(0);
 
+  // Estados para impressão
   const [comandaAberta, setComandaAberta] = useState(false);
   const [dadosComanda, setDadosComanda] = useState<any>(null);
 
+  // Estados para gerenciamento de estoque
   const [estoqueAberto, setEstoqueAberto] = useState(false);
   const [insumoEditando, setInsumoEditando] = useState<any>(null);
   const [formInsumo, setFormInsumo] = useState({
@@ -101,6 +110,7 @@ export default function Dashboard() {
   });
   const [modalInsumoAberto, setModalInsumoAberto] = useState(false);
 
+  // Estados para gerenciamento de produtos
   const [modalProdutoAberto, setModalProdutoAberto] = useState(false);
   const [produtoEditando, setProdutoEditando] = useState<any>(null);
   const [formProduto, setFormProduto] = useState({
@@ -111,6 +121,7 @@ export default function Dashboard() {
   const [receitaTemp, setReceitaTemp] = useState<any[]>([]);
   const [ingredienteTemp, setIngredienteTemp] = useState({ insumo_id: "", qtd: "" });
 
+  // Estados para adicionar garçom
   const [modalGarcomAberto, setModalGarcomAberto] = useState(false);
   const [modalGarcomFormAberto, setModalGarcomFormAberto] = useState(false); 
   const [formGarcom, setFormGarcom] = useState({
@@ -120,6 +131,7 @@ export default function Dashboard() {
     confirmarSenha: "",
   });
 
+  // Estados para gerenciamento de clientes
   const [modalClientesAberto, setModalClientesAberto] = useState(false);
   const [clienteEditando, setClienteEditando] = useState<any>(null);
   const [formCliente, setFormCliente] = useState({
@@ -130,6 +142,7 @@ export default function Dashboard() {
   });
   const [modalClienteFormAberto, setModalClienteFormAberto] = useState(false);
 
+  // Estado para aniversariantes
   const [modalAniversariantesAberto, setModalAniversariantesAberto] = useState(false);
   const [mesAniversario, setMesAniversario] = useState(new Date().getMonth() + 1);
 
@@ -187,6 +200,7 @@ export default function Dashboard() {
     }
   }
 
+  // ========== REALTIME SSOT ==========
   useEffect(() => {
     if (!usuario) return;
 
@@ -278,7 +292,12 @@ export default function Dashboard() {
     if (mesaSelecionada) {
       const atualizada = (mesas || []).find(m => String(m.id) === String(mesaSelecionada.id));
       if (atualizada) setMesaSelecionada(atualizada);
-      else setMesaSelecionada(null); 
+      else {
+        setMesaSelecionada(null);
+        setFichaAberta(false);
+        setCheckoutAberto(false);
+        setModalJuntarAberto(false);
+      }
     }
   }, [mesas]);
 
@@ -336,7 +355,7 @@ export default function Dashboard() {
 
       if (mesaExistente) {
         if (mesaExistente.status === "ocupada") {
-          alert("Esta mesa já está ocupada.");
+          alert("Esta mesa já está ocupada. Escolha outro número ou adicione os itens na mesa existente.");
           setProcessando(false);
           return;
         }
@@ -366,6 +385,42 @@ export default function Dashboard() {
     }
     setMesaSelecionada(mesa);
     setFichaAberta(true);
+  }
+
+  async function confirmarJuntarMesa() {
+    if (!mesaParaJuntar || !mesaSelecionada) return;
+    setProcessando(true);
+
+    try {
+      const mesaB = mesas.find(m => String(m.id) === String(mesaParaJuntar));
+      if (!mesaB) throw new Error("A mesa selecionada não foi encontrada ou já foi fechada.");
+
+      const itensA = Array.isArray(mesaSelecionada.itens) ? mesaSelecionada.itens : [];
+      const itensB = Array.isArray(mesaB.itens) ? mesaB.itens : [];
+
+      const itensBMapeados = itensB.map((i: any) => ({
+        ...i,
+        nome: `${i.nome} (Mesa ${mesaB.numero})`
+      }));
+
+      const novosItens = [...itensA, ...itensBMapeados];
+      const novoTotal = Number(mesaSelecionada.total || 0) + Number(mesaB.total || 0);
+
+      const { error: errA } = await supabase.from("mesas").update({ total: novoTotal, itens: novosItens }).eq("id", mesaSelecionada.id);
+      if (errA) throw errA;
+
+      const { error: errB } = await supabase.from("mesas").delete().eq("id", mesaB.id);
+      if (errB) throw errB;
+
+      setMesaSelecionada({ ...mesaSelecionada, total: novoTotal, itens: novosItens });
+      setModalJuntarAberto(false);
+      setMesaParaJuntar("");
+      alert("Mesas juntadas com sucesso!");
+    } catch (err: any) {
+      alert("Erro ao juntar mesas: " + err.message);
+    } finally {
+      setProcessando(false);
+    }
   }
 
   function adicionarItem(produto: any) {
@@ -425,7 +480,7 @@ export default function Dashboard() {
       let itensAtualizados = [...itensAntigos];
 
       pedidoAtual.forEach((itemNovo: any) => {
-        const index = itensAtualizados.findIndex((i: any) => String(i.id) === String(itemNovo.id));
+        const index = itensAtualizados.findIndex((i: any) => String(i.id) === String(itemNovo.id) && i.nome === itemNovo.nome);
         if (index >= 0) {
           itensAtualizados[index].quantidade = Number(itensAtualizados[index].quantidade || 0) + Number(itemNovo.quantidade || 0);
         } else {
@@ -434,7 +489,7 @@ export default function Dashboard() {
       });
 
       const pedidoCozinha = {
-        id: Date.now().toString(), // Geração de ID adicionada de volta
+        id: Date.now().toString(),
         mesa: String(mesaSelecionada.numero || ""),
         cliente: mesaSelecionada.cliente || "",
         itens: pedidoAtual,
@@ -485,9 +540,48 @@ export default function Dashboard() {
     }
   }
 
+  async function removerItemDaMesa(mesaId: string, indexItem: number, itemRemovido: any) {
+    if (!confirm(`Tem certeza que deseja excluir ${itemRemovido.quantidade}x ${itemRemovido.nome} desta comanda?\nO valor será descontado e os insumos devolvidos ao estoque.`)) return;
+    if (processando) return;
+
+    setProcessando(true);
+    try {
+      const mesa = (mesas || []).find(m => String(m.id) === String(mesaId));
+      if (!mesa) throw new Error("Mesa não encontrada.");
+
+      const produto = (produtos || []).find((p) => String(p.id) === String(itemRemovido.id));
+      if (produto && produto.receita && Array.isArray(produto.receita) && produto.receita.length > 0) {
+        for (const ing of produto.receita) {
+          const insumo = (insumos || []).find((i) => String(i.id) === String(ing.insumo_id));
+          if (insumo) {
+            const qtdDevolver = parseFloat(ing.qtd || "0") * Number(itemRemovido.quantidade || 0);
+            const novoEstoque = Number(insumo.estoque || 0) + qtdDevolver;
+
+            const { error: errEstoque } = await supabase.from("insumos").update({ estoque: novoEstoque }).eq("id", insumo.id);
+            if (errEstoque) throw errEstoque;
+          }
+        }
+      }
+
+      const novosItens = [...(mesa.itens || [])];
+      novosItens.splice(indexItem, 1);
+      const novoTotal = novosItens.reduce((acc, i) => acc + (Number(i.preco || 0) * Number(i.quantidade || 0)), 0);
+
+      const { error: errUpdate } = await supabase.from("mesas").update({ total: novoTotal, itens: novosItens }).eq("id", mesaId);
+      if (errUpdate) throw errUpdate;
+
+      alert("Item excluído da comanda com sucesso!");
+
+    } catch (err: any) {
+      alert("Erro ao excluir item: " + err.message);
+    } finally {
+      setProcessando(false);
+    }
+  }
+
   function abrirCheckout(mesa: any) {
     setMesaSelecionada(mesa);
-    setPagamentos([{ id: 1, metodo: "dinheiro", valor: 0 }]);
+    setPagamentos([{ id: 1, metodo: "dinheiro", valor: 0, clienteFiado: "" }]);
     setTotalPago(0);
     setSaldoRestante(Number(mesa.total || 0));
     setTroco(0);
@@ -512,7 +606,7 @@ export default function Dashboard() {
 
   function adicionarPagamento() {
     const novoId = pagamentos.length > 0 ? Math.max(...pagamentos.map(p => p.id)) + 1 : 1;
-    setPagamentos([...pagamentos, { id: novoId, metodo: "dinheiro", valor: 0 }]);
+    setPagamentos([...pagamentos, { id: novoId, metodo: "dinheiro", valor: 0, clienteFiado: "" }]);
   }
 
   function removerPagamento(id: number) {
@@ -535,6 +629,12 @@ export default function Dashboard() {
   function atualizarMetodoPagamento(id: number, metodo: string) {
     setPagamentos(pagamentos.map(p =>
       String(p.id) === String(id) ? { ...p, metodo } : p
+    ));
+  }
+
+  function atualizarClienteFiado(id: number, nome: string) {
+    setPagamentos(pagamentos.map(p =>
+      String(p.id) === String(id) ? { ...p, clienteFiado: nome } : p
     ));
   }
 
@@ -570,7 +670,7 @@ export default function Dashboard() {
       id: i + 1,
       metodo: "dinheiro",
       valor: i === numeroPessoas - 1 ? ultimoValor : valorPorPessoa,
-      pessoa: i + 1,
+      clienteFiado: "",
     }));
 
     setPagamentos(novosPagamentos);
@@ -590,29 +690,54 @@ export default function Dashboard() {
       return;
     }
 
+    if (pagamento.metodo === "fiado" && !(pagamento.clienteFiado || "").trim()) {
+      alert("Informe o nome do cliente no campo para pendurar este valor no fiado.");
+      return;
+    }
+
     const totalMesa = Number(mesaSelecionada.total || 0);
-    if (valorPago > totalMesa) {
+    if (valorPago > totalMesa + 0.05) { 
       alert("O valor não pode ser maior que o total da mesa.");
       return;
     }
 
     setProcessando(true);
     try {
-      const itensVenda = Array.isArray(mesaSelecionada.itens) ? mesaSelecionada.itens : [];
-      const custoEstimado = valorPago * 0.4;
-      const lucroEstimado = valorPago * 0.6;
+      if (pagamento.metodo === "fiado") {
+        const nomeFiado = pagamento.clienteFiado.trim().toUpperCase();
+        const { data: fiadoExistente } = await supabase.from("fiados").select("*").ilike("cliente_nome", nomeFiado).maybeSingle();
 
-      const { error: errVenda } = await supabase.from("vendas").insert([{
-          total_venda: valorPago,
-          custo_total: custoEstimado,
-          lucro_total: lucroEstimado,
-          cliente_nome: `${mesaSelecionada.cliente || ""} (Parcial)`,
-          mesa_numero: mesaSelecionada.numero,
-          itens: itensVenda,
-          pagamentos: [pagamento],
+        const itemResumo = { id: 'parcial', nome: `Pagamento Parcial Mesa ${mesaSelecionada.numero}`, quantidade: 1, preco: valorPago };
+
+        if (fiadoExistente) {
+          const novoTotalFiado = Number(fiadoExistente.total || 0) + valorPago;
+          const itensAtuais = Array.isArray(fiadoExistente.itens) ? fiadoExistente.itens : [];
+          itensAtuais.push(itemResumo);
+          
+          const { error: errUpFiado } = await supabase.from("fiados").update({ total: novoTotalFiado, itens: itensAtuais }).eq("id", fiadoExistente.id);
+          if (errUpFiado) throw errUpFiado;
+        } else {
+          const { error: errInsert } = await supabase.from("fiados").insert([{
+              cliente_nome: nomeFiado,
+              total: valorPago,
+              itens: [itemResumo],
+          }]);
+          if (errInsert) throw errInsert;
+        }
+      } else {
+        const custoEstimado = valorPago * 0.4;
+        const lucroEstimado = valorPago * 0.6;
+        const { error: errVenda } = await supabase.from("vendas").insert([{
+            total_venda: valorPago,
+            custo_total: custoEstimado,
+            lucro_total: lucroEstimado,
+            cliente_nome: `${mesaSelecionada.cliente || ""} (Parcial)`,
+            mesa_numero: mesaSelecionada.numero,
+            itens: [{ id: 'parcial', nome: `Pagamento parcial Mesa ${mesaSelecionada.numero}`, quantidade: 1, preco: valorPago }],
+            pagamentos: [pagamento],
         }]);
-
-      if (errVenda) throw errVenda;
+        if (errVenda) throw errVenda;
+      }
 
       const novoTotal = parseFloat((totalMesa - valorPago).toFixed(2));
 
@@ -621,7 +746,7 @@ export default function Dashboard() {
         setMesaSelecionada(null);
         setFichaAberta(false);
         setCheckoutAberto(false);
-        alert(`Pagamento de R$ ${valorPago.toFixed(2)} realizado. Mesa encerrada.`);
+        alert(`Pagamento de R$ ${valorPago.toFixed(2)} realizado com sucesso. Mesa encerrada.`);
       } else {
         const { error: errUpdate } = await supabase.from("mesas").update({ total: novoTotal }).eq("id", mesaSelecionada.id);
         if (errUpdate) throw errUpdate;
@@ -629,7 +754,7 @@ export default function Dashboard() {
         const novosPagamentos = pagamentos.filter(p => String(p.id) !== String(id));
         setPagamentos(novosPagamentos);
         recalcularTotais(novosPagamentos);
-        alert(`Pagamento de R$ ${valorPago.toFixed(2)} realizado. Saldo restante: R$ ${novoTotal.toFixed(2)}`);
+        alert(`Pagamento parcial de R$ ${valorPago.toFixed(2)} registrado. Saldo restante: R$ ${novoTotal.toFixed(2)}`);
       }
     } catch (err: any) {
       alert("Erro ao registrar pagamento parcial: " + err.message);
@@ -711,18 +836,21 @@ export default function Dashboard() {
         const lucroEstimado = somaPago * 0.6;
         const clienteId = clienteSelecionadoId || null;
 
-        const { error: errVenda } = await supabase.from("vendas").insert([{
-            total_venda: somaPago,
-            custo_total: custoEstimado,
-            lucro_total: lucroEstimado,
-            cliente_nome: mesaSelecionada.cliente || "Consumidor",
-            mesa_numero: mesaSelecionada.numero,
-            itens: itensVenda,
-            pagamentos: pagamentos,
-            cliente_id: clienteId,
-          }]);
+        const pagamentosReais = pagamentos.filter(p => Number(p.valor || 0) > 0 && p.metodo !== 'fiado');
 
-        if (errVenda) throw errVenda;
+        if (pagamentosReais.length > 0) {
+           const { error: errVenda } = await supabase.from("vendas").insert([{
+               total_venda: somaPago,
+               custo_total: custoEstimado,
+               lucro_total: lucroEstimado,
+               cliente_nome: mesaSelecionada.cliente || "Consumidor",
+               mesa_numero: mesaSelecionada.numero,
+               itens: itensVenda,
+               pagamentos: pagamentosReais,
+               cliente_id: clienteId,
+             }]);
+           if (errVenda) throw errVenda;
+        }
       }
 
       if (valorFiado > 0.01) {
@@ -733,7 +861,7 @@ export default function Dashboard() {
           const novoTotal = Number(fiadoExistente.total || 0) + valorFiado;
           let itensAtuais = Array.isArray(fiadoExistente.itens) ? fiadoExistente.itens : [];
           itensVenda.forEach((itemNovo: any) => {
-            const existente = itensAtuais.find((i: any) => String(i.id) === String(itemNovo.id));
+            const existente = itensAtuais.find((i: any) => String(i.id) === String(itemNovo.id) && i.nome === itemNovo.nome);
             if (existente) {
               existente.quantidade = Number(existente.quantidade || 0) + Number(itemNovo.quantidade || 0);
             } else {
@@ -814,7 +942,7 @@ export default function Dashboard() {
       const novosDesmembrados = fiadoSelecionado.itensDesmembrados.filter((_: any, i: number) => i !== idx);
       const itensAgrupados: any[] = [];
       novosDesmembrados.forEach((i: any) => {
-        const existente = itensAgrupados.find((x: any) => String(x.id) === String(i.id));
+        const existente = itensAgrupados.find((x: any) => String(x.id) === String(i.id) && x.nome === i.nome);
         if (existente) {
           existente.quantidade = Number(existente.quantidade || 0) + 1;
         } else {
@@ -1352,8 +1480,6 @@ export default function Dashboard() {
     return matchBusca && matchCat;
   });
 
-  const mesaOcupada = (mesas || []).some(m => String(m.numero) === String(parseInt(numeroMesa)) && m.status === "ocupada");
-
   if (carregando) {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
@@ -1376,7 +1502,7 @@ export default function Dashboard() {
             </div>
             <div>
               <h1 className="text-lg md:text-xl font-bold text-yellow-500 italic uppercase leading-none">
-                Bar da Praça <span className="text-[10px] text-zinc-500 ml-1">v9.1</span>
+                Bar da Praça <span className="text-[10px] text-zinc-500 ml-1">v10.0</span>
               </h1>
               <p className="text-[10px] md:text-xs text-zinc-400 mt-1">Bem-vindo, {usuario?.nome || "Usuário"}</p>
             </div>
@@ -1444,7 +1570,6 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* ========== MODAL ANIVERSARIANTES ========== */}
       {modalAniversariantesAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
@@ -1484,7 +1609,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== MODAL CLIENTES ========== */}
       {modalClientesAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -1521,7 +1645,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* MODAL FORMULÁRIO CLIENTE */}
       {modalClienteFormAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl p-4 md:p-6">
@@ -1540,7 +1663,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== MODAL GARÇONS ========== */}
       {modalGarcomAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
@@ -1574,7 +1696,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* MODAL FORMULÁRIO GARÇOM */}
       {modalGarcomFormAberto && isGerente && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl p-4 md:p-6">
@@ -1593,7 +1714,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== MODAL FIADOS ========== */}
       {isGerente && fiadosAberto && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
@@ -1774,6 +1894,7 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* ========== CARDÁPIO (Mesa) ========== */}
       {cardapioAberto && (
         <div className="fixed inset-0 bg-black/60 z-40 flex justify-start">
           <div className="bg-zinc-950 w-full md:max-w-md h-full overflow-y-auto border-r border-zinc-800 p-4 md:p-6 animate-in slide-in-from-left duration-300 flex flex-col">
@@ -1882,6 +2003,7 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* ========== MODAL NOVA MESA ========== */}
       {modalAberto && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-40 p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl">
@@ -1889,7 +2011,7 @@ export default function Dashboard() {
             <form onSubmit={abrirNovaMesa} className="space-y-4">
               <div>
                 <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Número da Mesa</label>
-                <input type="number" value={numeroMesa} onChange={(e) => setNumeroMesa(e.target.value)} placeholder="Ex: 5" disabled={mesaOcupada} className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-yellow-500 outline-none disabled:opacity-50 disabled:cursor-not-allowed" required />
+                <input type="number" value={numeroMesa} onChange={(e) => setNumeroMesa(e.target.value)} placeholder="Ex: 5" className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-yellow-500 outline-none disabled:opacity-50 disabled:cursor-not-allowed" required />
               </div>
               <div>
                 <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Nome do Cliente</label>
@@ -1904,6 +2026,31 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* ========== MODAL JUNTAR MESA ========== */}
+      {modalJuntarAberto && mesaSelecionada && (
+        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl">
+            <h3 className="text-xl font-black text-orange-500 uppercase italic mb-4">Juntar Mesas</h3>
+            <p className="text-sm text-zinc-400 mb-4">Selecione uma mesa aberta para ser incorporada à <strong>Mesa {mesaSelecionada.numero}</strong>. A mesa selecionada será transferida e encerrada.</p>
+            <select
+              value={mesaParaJuntar}
+              onChange={(e) => setMesaParaJuntar(e.target.value)}
+              className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-orange-500 outline-none mb-6"
+            >
+              <option value="">Selecione a mesa...</option>
+              {(mesas || []).filter(m => String(m.id) !== String(mesaSelecionada.id)).map(m => (
+                <option key={m.id} value={m.id}>Mesa {m.numero} ({m.cliente}) - R$ {Number(m.total).toFixed(2)}</option>
+              ))}
+            </select>
+            <div className="flex gap-3">
+              <button onClick={() => setModalJuntarAberto(false)} className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase transition-all hover:bg-zinc-700">Cancelar</button>
+              <button onClick={confirmarJuntarMesa} disabled={!mesaParaJuntar || processando} className="flex-1 bg-orange-600 hover:bg-orange-500 text-white font-black py-3 rounded-xl text-sm uppercase disabled:opacity-50">Juntar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========== FICHA DA MESA ========== */}
       {fichaAberta && mesaSelecionada && (
         <div className="fixed inset-0 bg-black/60 z-30 flex justify-end">
           <div className="bg-zinc-950 w-full md:max-w-md h-full overflow-y-auto border-l border-zinc-800 p-4 md:p-6 animate-in slide-in-from-right duration-300 flex flex-col">
@@ -1923,7 +2070,17 @@ export default function Dashboard() {
                       <span className="text-lg font-black text-yellow-500 italic">x{item.quantidade}</span>
                       <span className="font-bold text-xs md:text-sm uppercase text-zinc-200">{item.nome}</span>
                     </div>
-                    <span className="text-zinc-400 font-bold text-xs shrink-0">R$ {(Number(item.preco || 0) * Number(item.quantidade || 0)).toFixed(2)}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-zinc-400 font-bold text-xs shrink-0">R$ {(Number(item.preco || 0) * Number(item.quantidade || 0)).toFixed(2)}</span>
+                      <button 
+                        onClick={() => removerItemDaMesa(mesaSelecionada.id, idx, item)} 
+                        disabled={processando} 
+                        className="text-red-500 hover:bg-red-500/20 p-1.5 rounded-lg transition-colors disabled:opacity-50" 
+                        title="Excluir este item e devolver ao estoque"
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </div>
                 ))
               ) : (
@@ -1939,7 +2096,10 @@ export default function Dashboard() {
             </div>
 
             <div className="space-y-3 shrink-0 pb-6">
-              <button onClick={() => { setCardapioAberto(true); setFichaAberta(false); }} className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-black py-4 rounded-xl uppercase tracking-widest text-xs transition-all">+ Adicionar Item</button>
+              <div className="flex gap-2">
+                <button onClick={() => { setCardapioAberto(true); setFichaAberta(false); }} className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-black py-4 rounded-xl uppercase tracking-widest text-xs transition-all">+ Adicionar Item</button>
+                <button onClick={() => setModalJuntarAberto(true)} className="flex-1 bg-orange-600 hover:bg-orange-500 text-white font-black py-4 rounded-xl uppercase tracking-widest text-xs transition-all">🔗 Juntar Mesa</button>
+              </div>
               <button onClick={() => imprimirComandaCozinha(mesaSelecionada)} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl uppercase tracking-widest text-xs transition-all">📄 Comanda Cozinha</button>
               <button onClick={() => { setFichaAberta(false); abrirCheckout(mesaSelecionada); }} className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-xl uppercase tracking-widest text-xs transition-all">Fechar Conta</button>
             </div>
@@ -1947,6 +2107,7 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* ========== CHECKOUT MODAL ========== */}
       {checkoutAberto && mesaSelecionada && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-4 md:p-6">
@@ -1960,8 +2121,61 @@ export default function Dashboard() {
               <p className="text-zinc-400 text-sm">Total da conta: <span className="font-bold text-yellow-500 text-xl md:text-2xl">R$ {Number(mesaSelecionada.total || 0).toFixed(2)}</span></p>
             </div>
 
+            {/* RESUMO DOS ITENS */}
+            <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 mb-4 max-h-32 overflow-y-auto">
+              <p className="text-zinc-500 font-black uppercase text-[10px] tracking-widest mb-2">Resumo dos Itens ({mesaSelecionada?.itens?.length || 0})</p>
+              {mesaSelecionada?.itens?.map((item: any, idx: number) => (
+                <div key={idx} className="flex justify-between text-xs text-zinc-400 mb-1 border-b border-zinc-800/50 pb-1 last:border-0 last:mb-0 last:pb-0">
+                  <span>{item.quantidade}x {item.nome}</span>
+                  <span>R$ {(Number(item.preco || 0) * Number(item.quantidade || 0)).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+
             <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 mb-4">
-              <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block mb-2">Vincular Cliente (opcional)</label>
+              <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block mb-2">Dividir igual entre pessoas</label>
+              <div className="flex items-center gap-3">
+                <input type="number" min="1" max="20" value={numeroPessoas} onChange={(e) => setNumeroPessoas(Math.max(1, parseInt(e.target.value) || 1))} className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold w-16 md:w-20 text-center outline-none focus:border-yellow-500" />
+                <span className="text-zinc-400 text-xs md:text-sm">pessoas</span>
+                <button onClick={dividirIgualmente} className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-500 px-4 py-2 rounded-lg text-[10px] md:text-xs font-black uppercase transition-all whitespace-nowrap">Dividir</button>
+              </div>
+              {dividirIgual && <p className="text-green-500 text-xs mt-2 font-bold">✓ Valores divididos entre {numeroPessoas}</p>}
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block">Pagamentos / Parcelas</label>
+              {(pagamentos || []).map((pag) => (
+                <div key={pag.id} className="flex flex-col md:flex-row items-center gap-3 bg-zinc-950 p-3 rounded-xl border border-zinc-800">
+                  <select value={pag.metodo} onChange={(e) => atualizarMetodoPagamento(pag.id, e.target.value)} className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-xs w-full md:w-32 outline-none focus:border-yellow-500">
+                    <option value="dinheiro">Dinheiro</option>
+                    <option value="pix">PIX</option>
+                    <option value="debito">Débito</option>
+                    <option value="credito">Crédito</option>
+                    <option value="fiado">Fiado</option>
+                  </select>
+
+                  <div className="flex w-full gap-2 items-center">
+                    {pag.metodo === 'fiado' && (
+                      <input type="text" placeholder="Nome Fiado" value={pag.clienteFiado || ""} onChange={(e) => atualizarClienteFiado(pag.id, e.target.value)} className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold w-full md:w-32 text-xs outline-none focus:border-orange-500" />
+                    )}
+                    <input type="number" step="0.01" min="0" value={pag.valor || ""} onChange={(e) => atualizarValorPagamento(pag.id, parseFloat(e.target.value) || 0)} placeholder="0,00" className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold w-full md:w-28 text-right outline-none focus:border-yellow-500" />
+                    {(pagamentos || []).length > 1 && <button onClick={() => removerPagamento(pag.id)} className="text-red-500 hover:text-red-400 text-lg font-black shrink-0 px-2">✕</button>}
+                  </div>
+                  <button onClick={() => pagarParcela(pag.id)} disabled={processando} className="w-full md:w-auto bg-green-600 hover:bg-green-500 text-white px-3 py-2 rounded-lg text-[10px] md:text-xs font-black uppercase transition-all disabled:opacity-50">{processando ? "..." : "Pagar agora"}</button>
+                </div>
+              ))}
+              <button onClick={adicionarPagamento} className="text-yellow-500 hover:text-yellow-400 text-xs font-black uppercase transition-colors">+ Adicionar parcela</button>
+            </div>
+
+            <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 space-y-2 mb-6">
+              <div className="flex justify-between"><span className="text-zinc-400 text-sm">Total Pago:</span><span className="font-bold text-green-500">R$ {totalPago.toFixed(2)}</span></div>
+              {saldoRestante > 0 && <div className="flex justify-between"><span className="text-zinc-400 text-sm">Saldo Restante:</span><span className="font-bold text-orange-500">R$ {saldoRestante.toFixed(2)}</span></div>}
+              {troco > 0 && <div className="flex justify-between"><span className="text-zinc-400 text-sm">Troco:</span><span className="font-bold text-blue-400">R$ {troco.toFixed(2)}</span></div>}
+            </div>
+
+            {/* Finalização Global */}
+            <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 mb-4">
+              <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block mb-2">Vincular Cliente da Mesa (opcional)</label>
               <div className="relative flex gap-2">
                 <div className="relative flex-1">
                   <input
@@ -1991,44 +2205,11 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 mb-4">
-              <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block mb-2">Dividir igual entre pessoas</label>
-              <div className="flex items-center gap-3">
-                <input type="number" min="1" max="20" value={numeroPessoas} onChange={(e) => setNumeroPessoas(Math.max(1, parseInt(e.target.value) || 1))} className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold w-16 md:w-20 text-center outline-none focus:border-yellow-500" />
-                <span className="text-zinc-400 text-xs md:text-sm">pessoas</span>
-                <button onClick={dividirIgualmente} className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-500 px-4 py-2 rounded-lg text-[10px] md:text-xs font-black uppercase transition-all whitespace-nowrap">Dividir</button>
-              </div>
-              {dividirIgual && <p className="text-green-500 text-xs mt-2 font-bold">✓ Valores divididos entre {numeroPessoas}</p>}
-            </div>
-
-            <div className="space-y-4 mb-6">
-              <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block">Formas de Pagamento</label>
-              {(pagamentos || []).map((pag) => (
-                <div key={pag.id} className="flex flex-col md:flex-row items-center gap-3 bg-zinc-950 p-3 rounded-xl border border-zinc-800">
-                  <select value={pag.metodo} onChange={(e) => atualizarMetodoPagamento(pag.id, e.target.value)} className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-xs w-full md:w-32 outline-none focus:border-yellow-500">
-                    <option value="dinheiro">Dinheiro</option><option value="pix">PIX</option><option value="debito">Débito</option><option value="credito">Crédito</option>
-                  </select>
-                  <div className="flex w-full gap-2 items-center">
-                    <input type="number" step="0.01" min="0" value={pag.valor || ""} onChange={(e) => atualizarValorPagamento(pag.id, parseFloat(e.target.value) || 0)} placeholder="0,00" className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold w-full md:w-28 text-right outline-none focus:border-yellow-500" />
-                    {(pagamentos || []).length > 1 && <button onClick={() => removerPagamento(pag.id)} className="text-red-500 hover:text-red-400 text-lg font-black shrink-0 px-2">✕</button>}
-                  </div>
-                  <button onClick={() => pagarParcela(pag.id)} disabled={processando} className="w-full md:w-auto bg-green-600 hover:bg-green-500 text-white px-3 py-2 rounded-lg text-[10px] md:text-xs font-black uppercase transition-all disabled:opacity-50">{processando ? "..." : "Pagar agora"}</button>
-                </div>
-              ))}
-              <button onClick={adicionarPagamento} className="text-yellow-500 hover:text-yellow-400 text-xs font-black uppercase transition-colors">+ Adicionar forma</button>
-            </div>
-
-            <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 space-y-2 mb-6">
-              <div className="flex justify-between"><span className="text-zinc-400 text-sm">Total Pago:</span><span className="font-bold text-green-500">R$ {totalPago.toFixed(2)}</span></div>
-              {saldoRestante > 0 && <div className="flex justify-between"><span className="text-zinc-400 text-sm">Saldo Restante:</span><span className="font-bold text-orange-500">R$ {saldoRestante.toFixed(2)}</span></div>}
-              {troco > 0 && <div className="flex justify-between"><span className="text-zinc-400 text-sm">Troco:</span><span className="font-bold text-blue-400">R$ {troco.toFixed(2)}</span></div>}
-            </div>
-
             <div className="space-y-3 mb-6">
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-orange-950/10 border border-orange-500/30 p-3 rounded-xl">
                 <div className="flex items-center gap-2">
                   <input type="checkbox" id="fiadoAuto" checked={fiadoAutomatico} onChange={(e) => setFiadoAutomatico(e.target.checked)} className="accent-orange-500 w-4 h-4 shrink-0" />
-                  <label htmlFor="fiadoAuto" className="text-orange-400 text-xs md:text-sm font-bold leading-tight">Lançar saldo pendente no fiado</label>
+                  <label htmlFor="fiadoAuto" className="text-orange-400 text-xs md:text-sm font-bold leading-tight">Lançar saldo total restante no fiado geral</label>
                 </div>
                 {fiadoAutomatico && <input type="text" value={clienteNomeFiado} onChange={(e) => setClienteNomeFiado(e.target.value)} placeholder="Nome do devedor" className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1 text-zinc-200 text-sm w-full sm:w-40 outline-none focus:border-orange-500" />}
               </div>
