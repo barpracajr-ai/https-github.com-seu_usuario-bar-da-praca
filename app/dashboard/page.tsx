@@ -121,7 +121,7 @@ export default function Dashboard() {
   const [receitaTemp, setReceitaTemp] = useState<any[]>([]);
   const [ingredienteTemp, setIngredienteTemp] = useState({ insumo_id: "", qtd: "" });
 
-  // Estados para gerenciamento de Garçons
+  // Estados para adicionar garçom
   const [modalGarcomAberto, setModalGarcomAberto] = useState(false);
   const [modalGarcomFormAberto, setModalGarcomFormAberto] = useState(false); 
   const [formGarcom, setFormGarcom] = useState({
@@ -131,7 +131,6 @@ export default function Dashboard() {
     confirmarSenha: "",
   });
 
-  // Estados para gerenciamento de clientes
   const [modalClientesAberto, setModalClientesAberto] = useState(false);
   const [clienteEditando, setClienteEditando] = useState<any>(null);
   const [formCliente, setFormCliente] = useState({
@@ -142,7 +141,6 @@ export default function Dashboard() {
   });
   const [modalClienteFormAberto, setModalClienteFormAberto] = useState(false);
 
-  // Estado para aniversariantes
   const [modalAniversariantesAberto, setModalAniversariantesAberto] = useState(false);
   const [mesAniversario, setMesAniversario] = useState(new Date().getMonth() + 1);
 
@@ -288,10 +286,9 @@ export default function Dashboard() {
     };
   }, [usuario]);
 
-  // Sincronização Dinâmica (mantém os modais abertos atualizados com as mudanças do Realtime)
   useEffect(() => {
     if (mesaSelecionada) {
-      const atualizada = mesas.find(m => String(m.id) === String(mesaSelecionada.id));
+      const atualizada = (mesas || []).find(m => String(m.id) === String(mesaSelecionada.id));
       if (atualizada) setMesaSelecionada(atualizada);
       else {
         setMesaSelecionada(null);
@@ -304,7 +301,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (fiadoSelecionado) {
-      const atualizado = fiados.find(f => String(f.id) === String(fiadoSelecionado.id));
+      const atualizado = (fiados || []).find(f => String(f.id) === String(fiadoSelecionado.id));
       if (atualizado) {
         if (atualizado.total !== fiadoSelecionado.total || JSON.stringify(atualizado.itens) !== JSON.stringify(fiadoSelecionado.itens)) {
           const itensDesmembrados: any[] = [];
@@ -356,7 +353,7 @@ export default function Dashboard() {
 
       if (mesaExistente) {
         if (mesaExistente.status === "ocupada") {
-          alert("Esta mesa já está aberta no salão. Verifique o número ou adicione os itens na mesa já existente.");
+          alert("Esta mesa já está aberta no salão. Escolha outro número de mesa para continuar.");
           setProcessando(false);
           return;
         }
@@ -388,7 +385,6 @@ export default function Dashboard() {
     setFichaAberta(true);
   }
 
-  // NOVA FUNÇÃO: JUNTAR MESAS
   async function confirmarJuntarMesa() {
     if (!mesaParaJuntar || !mesaSelecionada) return;
     setProcessando(true);
@@ -542,7 +538,6 @@ export default function Dashboard() {
     }
   }
 
-  // NOVA FUNÇÃO: EXCLUIR ITEM INDIVIDUAL DA COMANDA ABERTA
   async function removerItemDaMesa(mesaId: string, indexItem: number, itemRemovido: any) {
     if (!confirm(`Tem certeza que deseja excluir ${itemRemovido.quantidade}x ${itemRemovido.nome} desta comanda?\nO valor será descontado e os insumos devolvidos ao estoque.`)) return;
     if (processando) return;
@@ -710,7 +705,6 @@ export default function Dashboard() {
       const custoEstimado = valorPago * 0.4;
       const lucroEstimado = valorPago * 0.6;
 
-      // Se a pessoa selecionou FIADO para sua cota parte
       if (pagamento.metodo === "fiado") {
         const nomeFiado = pagamento.clienteFiado.trim().toUpperCase();
         const { data: fiadoExistente } = await supabase.from("fiados").select("*").ilike("cliente_nome", nomeFiado).maybeSingle();
@@ -733,7 +727,6 @@ export default function Dashboard() {
           if (errInsert) throw errInsert;
         }
       } else {
-        // Se pagou em dinheiro, cartão, etc
         const { error: errVenda } = await supabase.from("vendas").insert([{
             total_venda: valorPago,
             custo_total: custoEstimado,
@@ -1051,6 +1044,21 @@ export default function Dashboard() {
     } finally {
       setProcessando(false);
     }
+  }
+
+  function imprimirComandaCozinha(mesa: any) {
+    if (!mesa || !mesa.itens || mesa.itens.length === 0) {
+      alert("Não há itens para imprimir.");
+      return;
+    }
+    setDadosComanda({
+      tipo: "cozinha",
+      mesa: mesa.numero,
+      cliente: mesa.cliente,
+      itens: mesa.itens,
+      hora: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+    });
+    setComandaAberta(true);
   }
 
   function imprimirComandaCliente(mesa: any, pagamentosRealizados?: any[]) {
@@ -1494,7 +1502,7 @@ export default function Dashboard() {
             </div>
             <div>
               <h1 className="text-lg md:text-xl font-bold text-yellow-500 italic uppercase leading-none">
-                Bar da Praça <span className="text-[10px] text-zinc-500 ml-1">v10.1</span>
+                Bar da Praça <span className="text-[10px] text-zinc-500 ml-1">v10.2</span>
               </h1>
               <p className="text-[10px] md:text-xs text-zinc-400 mt-1">Bem-vindo, {usuario?.nome || "Usuário"}</p>
             </div>
@@ -1767,7 +1775,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========== MODAL RECEBER FIADO ========== */}
       {isGerente && fiadoModalAberto && fiadoSelecionado && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-4 md:p-6">
@@ -1841,7 +1848,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* MODAL FORMULÁRIO INSUMO */}
       {isGerente && modalInsumoAberto && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-md w-full shadow-2xl p-4 md:p-6">
@@ -2027,6 +2033,29 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* ========== MODAL NOVA MESA ========== */}
+      {modalAberto && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-40 p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl">
+            <h3 className="text-xl md:text-2xl font-black text-yellow-500 uppercase italic text-center mb-6">Nova Mesa</h3>
+            <form onSubmit={abrirNovaMesa} className="space-y-4">
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Número da Mesa</label>
+                <input type="number" value={numeroMesa} onChange={(e) => setNumeroMesa(e.target.value)} placeholder="Ex: 5" className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-yellow-500 outline-none disabled:opacity-50" required />
+              </div>
+              <div>
+                <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Nome do Cliente</label>
+                <input type="text" value={clienteMesa} onChange={(e) => setClienteMesa(e.target.value)} placeholder="Ex: João" className="w-full bg-zinc-950 border border-zinc-800 h-12 rounded-xl px-4 text-zinc-50 font-bold focus:border-yellow-500 outline-none" required />
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button type="button" onClick={() => setModalAberto(false)} className="flex-1 bg-zinc-800 text-zinc-400 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-zinc-700 transition-all">Cancelar</button>
+                <button type="submit" disabled={processando} className="flex-1 bg-yellow-500 text-zinc-950 font-black py-3 rounded-xl text-sm uppercase tracking-widest hover:bg-yellow-400 transition-all disabled:opacity-50">{processando ? "Aguarde..." : "Abrir Mesa"}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* ========== FICHA DA MESA ========== */}
       {fichaAberta && mesaSelecionada && (
         <div className="fixed inset-0 bg-black/60 z-30 flex justify-end">
@@ -2110,7 +2139,7 @@ export default function Dashboard() {
             </div>
 
             <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 mb-4">
-              <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block mb-2">Vincular Cliente (opcional)</label>
+              <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block mb-2">Vincular Cliente da Mesa (opcional)</label>
               <div className="relative flex gap-2">
                 <div className="relative flex-1">
                   <input
@@ -2141,7 +2170,7 @@ export default function Dashboard() {
             </div>
 
             <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 mb-4">
-              <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block mb-2">Dividir conta igualmente entre pessoas</label>
+              <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block mb-2">Dividir igual entre pessoas</label>
               <div className="flex items-center gap-3">
                 <input type="number" min="1" max="20" value={numeroPessoas} onChange={(e) => setNumeroPessoas(Math.max(1, parseInt(e.target.value) || 1))} className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold w-16 md:w-20 text-center outline-none focus:border-yellow-500" />
                 <span className="text-zinc-400 text-xs md:text-sm">pessoas</span>
@@ -2151,11 +2180,14 @@ export default function Dashboard() {
             </div>
 
             <div className="space-y-4 mb-6">
-              <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block">Pagamentos e Divisões</label>
+              <label className="text-zinc-500 font-black uppercase text-[10px] tracking-widest block">Pagamentos / Parcelas</label>
               {(pagamentos || []).map((pag) => (
                 <div key={pag.id} className="flex flex-col md:flex-row items-center gap-3 bg-zinc-950 p-3 rounded-xl border border-zinc-800">
                   <select value={pag.metodo} onChange={(e) => atualizarMetodoPagamento(pag.id, e.target.value)} className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 font-bold text-xs w-full md:w-32 outline-none focus:border-yellow-500">
-                    <option value="dinheiro">Dinheiro</option><option value="pix">PIX</option><option value="debito">Débito</option><option value="credito">Crédito</option>
+                    <option value="dinheiro">Dinheiro</option>
+                    <option value="pix">PIX</option>
+                    <option value="debito">Débito</option>
+                    <option value="credito">Crédito</option>
                     <option value="fiado">Fiado</option>
                   </select>
 
@@ -2182,7 +2214,7 @@ export default function Dashboard() {
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-orange-950/10 border border-orange-500/30 p-3 rounded-xl">
                 <div className="flex items-center gap-2">
                   <input type="checkbox" id="fiadoAuto" checked={fiadoAutomatico} onChange={(e) => setFiadoAutomatico(e.target.checked)} className="accent-orange-500 w-4 h-4 shrink-0" />
-                  <label htmlFor="fiadoAuto" className="text-orange-400 text-xs md:text-sm font-bold leading-tight">Lançar saldo restante no fiado geral</label>
+                  <label htmlFor="fiadoAuto" className="text-orange-400 text-xs md:text-sm font-bold leading-tight">Lançar saldo total restante no fiado geral</label>
                 </div>
                 {fiadoAutomatico && <input type="text" value={clienteNomeFiado} onChange={(e) => setClienteNomeFiado(e.target.value)} placeholder="Nome do devedor" className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1 text-zinc-200 text-sm w-full sm:w-40 outline-none focus:border-orange-500" />}
               </div>
